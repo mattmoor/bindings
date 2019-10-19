@@ -22,22 +22,27 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
+	kubeclient "knative.dev/pkg/client/injection/kube/client"
+	"knative.dev/pkg/injection"
+	"knative.dev/pkg/injection/sharedmain"
+
+	"go.opencensus.io/stats/view"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"knative.dev/pkg/configmap"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/logging/logkey"
+	"knative.dev/pkg/metrics"
 	"knative.dev/pkg/profiling"
 	"knative.dev/pkg/signals"
 	"knative.dev/pkg/system"
 	"knative.dev/pkg/version"
 	"knative.dev/pkg/webhook"
 
-	"knative.dev/sample-controller/pkg/apis/samples/v1alpha1"
+	"github.com/mattmoor/foo-binding/pkg/apis/bindings/v1alpha1"
 )
 
 const (
@@ -58,32 +63,36 @@ var (
 
 func main() {
 	flag.Parse()
-	cm, err := configmap.Load("/etc/config-logging")
-	if err != nil {
-		log.Fatal("Error loading logging configuration:", err)
-	}
-	config, err := logging.NewConfigFromMap(cm)
-	if err != nil {
-		log.Fatal("Error parsing logging configuration:", err)
-	}
-	logger, atomicLevel := logging.NewLoggerFromConfig(config, component)
-	defer logger.Sync()
-	logger = logger.With(zap.String(logkey.ControllerType, component))
-
-	logger.Info("Starting the Configuration Webhook")
 
 	// Set up signals so we handle the first shutdown signal gracefully.
 	ctx := signals.NewContext()
 
-	clusterConfig, err := clientcmd.BuildConfigFromFlags(*masterURL, *kubeconfig)
-	if err != nil {
-		logger.Fatalw("Failed to get cluster config", zap.Error(err))
+	// Report stats on Go memory usage every 30 seconds.
+	msp := metrics.NewMemStatsAll()
+	msp.Start(ctx, 30*time.Second)
+	if err := view.Register(msp.DefaultViews()...); err != nil {
+		log.Fatalf("Error exporting go memstats view: %v", err)
 	}
 
-	kubeClient, err := kubernetes.NewForConfig(clusterConfig)
+	cfg, err := sharedmain.GetConfig(*masterURL, *kubeconfig)
 	if err != nil {
-		logger.Fatalw("Failed to get the client set", zap.Error(err))
+		log.Fatal("Failed to get cluster config:", err)
 	}
+
+	log.Printf("Registering %d clients", len(injection.Default.GetClients()))
+	log.Printf("Registering %d informer factories", len(injection.Default.GetInformerFactories()))
+	log.Printf("Registering %d informers", len(injection.Default.GetInformers()))
+
+	ctx, _ = injection.Default.SetupInformers(ctx, cfg)
+	kubeClient := kubeclient.Get(ctx)
+
+	config, err := sharedmain.GetLoggingConfig(ctx)
+	if err != nil {
+		log.Fatal("Error loading/parsing logging configuration:", err)
+	}
+	logger, atomicLevel := logging.NewLoggerFromConfig(config, component)
+	defer logger.Sync()
+	logger = logger.With(zap.String(logkey.ControllerType, component))
 
 	if err := version.CheckMinimumVersion(kubeClient.Discovery()); err != nil {
 		logger.Fatalw("Version check failed", err)
@@ -118,7 +127,7 @@ func main() {
 	}
 
 	resourceHandlers := map[schema.GroupVersionKind]webhook.GenericCRD{
-		v1alpha1.SchemeGroupVersion.WithKind("AddressableService"): &v1alpha1.AddressableService{},
+		v1alpha1.SchemeGroupVersion.WithKind("FooBinding"): &v1alpha1.FooBinding{},
 	}
 
 	resourceAdmissionController := webhook.NewResourceAdmissionController(resourceHandlers, options, true)

@@ -16,9 +16,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: webhook
-  namespace: knative-samples
+  namespace: binding-system
   labels:
-    samples.knative.dev/release: devel
+    bindings.mattmoor.dev/release: devel
 spec:
   replicas: 1
   selector:
@@ -32,14 +32,14 @@ spec:
       labels:
         app: webhook
         role: webhook
-        samples.knative.dev/release: devel
+        bindings.mattmoor.dev/release: devel
     spec:
       serviceAccountName: controller
       containers:
       - name: webhook
         # This is the Go import path for the binary that is containerized
         # and substituted here.
-        image: knative.dev/sample-controller/cmd/webhook
+        image: github.com/mattmoor/foo-binding/cmd/webhook
         resources:
           # Request 2x what we saw running e2e
           requests:
@@ -49,9 +49,6 @@ spec:
           limits:
             cpu: 200m
             memory: 200Mi
-        volumeMounts:
-        - name: config-logging
-          mountPath: /etc/config-logging
         env:
         - name: SYSTEM_NAMESPACE
           valueFrom:
@@ -59,7 +56,3 @@ spec:
               fieldPath: metadata.namespace
         - name: CONFIG_LOGGING_NAME
           value: config-logging
-      volumes:
-        - name: config-logging
-          configMap:
-            name: config-logging

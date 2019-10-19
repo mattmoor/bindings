@@ -16,9 +16,9 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: controller
-  namespace: knative-samples
+  namespace: binding-system
   labels:
-    samples.knative.dev/release: devel
+    bindings.mattmoor.dev/release: devel
 spec:
   replicas: 1
   selector:
@@ -30,14 +30,14 @@ spec:
         sidecar.istio.io/inject: "false"
       labels:
         app: controller
-        samples.knative.dev/release: devel
+        bindings.mattmoor.dev/release: devel
     spec:
       serviceAccountName: controller
       containers:
       - name: controller
         # This is the Go import path for the binary that is containerized
         # and substituted here.
-        image: knative.dev/sample-controller/cmd/controller
+        image: github.com/mattmoor/foo-binding/cmd/controller
         resources:
           # Request 2x what we saw running e2e
           requests:
@@ -50,9 +50,6 @@ spec:
         ports:
         - name: metrics
           containerPort: 9090
-        volumeMounts:
-        - name: config-logging
-          mountPath: /etc/config-logging
         env:
         - name: SYSTEM_NAMESPACE
           valueFrom:
@@ -64,7 +61,3 @@ spec:
           value: config-observability
         - name: METRICS_DOMAIN
           value: knative.dev/samples
-      volumes:
-        - name: config-logging
-          configMap:
-            name: config-logging

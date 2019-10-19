@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Knative Authors
+Copyright 2019 The Knative Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,18 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package v1alpha1
 
 import (
-	// The set of controllers this controller process runs.
-	"github.com/mattmoor/foo-binding/pkg/reconciler/foobinding"
-
-	// This defines the shared main for injected controllers.
-	"knative.dev/pkg/injection/sharedmain"
+	"context"
 )
 
-func main() {
-	sharedmain.Main("controller",
-		foobinding.NewController,
-	)
+// SetDefaults implements apis.Defaultable
+func (fb *FooBinding) SetDefaults(ctx context.Context) {
+	if fb.Spec.Target.Namespace == "" {
+		// Default the target's namespace to our namespace.
+		fb.Spec.Target.Namespace = fb.Namespace
+	}
 }

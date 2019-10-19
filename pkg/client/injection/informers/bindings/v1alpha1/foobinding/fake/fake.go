@@ -21,25 +21,20 @@ package fake
 import (
 	"context"
 
-	externalversions "github.com/mattmoor/foo-binding/pkg/client/informers/externalversions"
-	fake "github.com/mattmoor/foo-binding/pkg/client/injection/client/fake"
-	factory "github.com/mattmoor/foo-binding/pkg/client/injection/informers/factory"
+	foobinding "github.com/mattmoor/foo-binding/pkg/client/injection/informers/bindings/v1alpha1/foobinding"
+	fake "github.com/mattmoor/foo-binding/pkg/client/injection/informers/factory/fake"
 	controller "knative.dev/pkg/controller"
 	injection "knative.dev/pkg/injection"
 )
 
-var Get = factory.Get
+var Get = foobinding.Get
 
 func init() {
-	injection.Fake.RegisterInformerFactory(withInformerFactory)
+	injection.Fake.RegisterInformer(withInformer)
 }
 
-func withInformerFactory(ctx context.Context) context.Context {
-	c := fake.Get(ctx)
-	opts := make([]externalversions.SharedInformerOption, 0, 1)
-	if injection.HasNamespaceScope(ctx) {
-		opts = append(opts, externalversions.WithNamespace(injection.GetNamespaceScope(ctx)))
-	}
-	return context.WithValue(ctx, factory.Key{},
-		externalversions.NewSharedInformerFactoryWithOptions(c, controller.GetResyncPeriod(ctx), opts...))
+func withInformer(ctx context.Context) (context.Context, controller.Informer) {
+	f := fake.Get(ctx)
+	inf := f.Bindings().V1alpha1().FooBindings()
+	return context.WithValue(ctx, foobinding.Key{}, inf), inf.Informer()
 }

@@ -1,7 +1,20 @@
-apiVersion: samples.knative.dev/v1alpha1
-kind: AddressableService
+apiVersion: bindings.mattmoor.dev/v1alpha1
+kind: FooBinding
 metadata:
-  name: make-it-addressable
-  namespace: knative-samples
+  name: test
 spec:
-  serviceName: webhook
+  # K8s deployment
+  # target:
+  #   apiVersion: apps/v1
+  #   kind: Deployment
+  #   name: debug
+
+  # Knative Service
+  target:
+    apiVersion: serving.knative.dev/v1
+    kind: Service
+    name: runtime
+
+  value: OMFG it works
+
+  

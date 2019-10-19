@@ -1,5 +1,5 @@
 /*
-Copyright 2019 The Knative Authors
+Copyright 2019 The Knative Authors.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -14,18 +14,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package v1alpha1
 
 import (
-	// The set of controllers this controller process runs.
-	"github.com/mattmoor/foo-binding/pkg/reconciler/foobinding"
+	"context"
 
-	// This defines the shared main for injected controllers.
-	"knative.dev/pkg/injection/sharedmain"
+	"knative.dev/pkg/apis"
 )
 
-func main() {
-	sharedmain.Main("controller",
-		foobinding.NewController,
-	)
+// Validate implements apis.Validatable
+func (fb *FooBinding) Validate(ctx context.Context) *apis.FieldError {
+	// TODO(mattmoor): Add validation.
+	return nil
 }

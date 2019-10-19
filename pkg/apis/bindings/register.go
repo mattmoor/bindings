@@ -14,18 +14,8 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
+package bindings
 
-import (
-	// The set of controllers this controller process runs.
-	"github.com/mattmoor/foo-binding/pkg/reconciler/foobinding"
-
-	// This defines the shared main for injected controllers.
-	"knative.dev/pkg/injection/sharedmain"
+const (
+	GroupName = "bindings.mattmoor.dev"
 )
-
-func main() {
-	sharedmain.Main("controller",
-		foobinding.NewController,
-	)
-}

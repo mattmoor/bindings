@@ -14,18 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package main
-
-import (
-	// The set of controllers this controller process runs.
-	"github.com/mattmoor/foo-binding/pkg/reconciler/foobinding"
-
-	// This defines the shared main for injected controllers.
-	"knative.dev/pkg/injection/sharedmain"
-)
-
-func main() {
-	sharedmain.Main("controller",
-		foobinding.NewController,
-	)
-}
+// +k8s:deepcopy-gen=package
+// +groupName=bindings.mattmoor.dev
+package v1alpha1
