@@ -19,11 +19,33 @@ package v1alpha1
 import (
 	"context"
 
+	corev1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
 )
 
 // Validate implements apis.Validatable
 func (fb *FooBinding) Validate(ctx context.Context) *apis.FieldError {
-	// TODO(mattmoor): Add validation.
-	return nil
+	return fb.Spec.Validate(ctx)
+}
+
+// Validate implements apis.Validatable
+func (fbs *FooBindingSpec) Validate(ctx context.Context) *apis.FieldError {
+	return validateObjRef(ctx, fbs.Target).ViaField("target")
+}
+
+func validateObjRef(ctx context.Context, ref corev1.ObjectReference) *apis.FieldError {
+	var errs *apis.FieldError
+	if ref.APIVersion == "" {
+		errs = errs.Also(apis.ErrMissingField("apiVersion"))
+	}
+	if ref.Kind == "" {
+		errs = errs.Also(apis.ErrMissingField("kind"))
+	}
+	if ref.Name == "" {
+		errs = errs.Also(apis.ErrMissingField("name"))
+	}
+	if ref.Namespace == "" {
+		errs = errs.Also(apis.ErrMissingField("namespace"))
+	}
+	return errs
 }
