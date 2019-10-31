@@ -19,7 +19,6 @@
 package grpc
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -33,6 +32,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"golang.org/x/net/context"
 	"golang.org/x/net/trace"
 
 	"google.golang.org/grpc/codes"
@@ -40,12 +40,10 @@ import (
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/encoding/proto"
 	"google.golang.org/grpc/grpclog"
-	"google.golang.org/grpc/internal/binarylog"
 	"google.golang.org/grpc/internal/channelz"
 	"google.golang.org/grpc/internal/transport"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/stats"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/tap"
@@ -86,7 +84,7 @@ type service struct {
 
 // Server is a gRPC server to serve RPC requests.
 type Server struct {
-	opts serverOptions
+	opts options
 
 	mu     sync.Mutex // guards following
 	lis    map[net.Listener]bool
@@ -108,7 +106,7 @@ type Server struct {
 	czData     *channelzData
 }
 
-type serverOptions struct {
+type options struct {
 	creds                 credentials.TransportCredentials
 	codec                 baseCodec
 	cp                    Compressor
@@ -131,7 +129,7 @@ type serverOptions struct {
 	maxHeaderListSize     *uint32
 }
 
-var defaultServerOptions = serverOptions{
+var defaultServerOptions = options{
 	maxReceiveMessageSize: defaultServerMaxReceiveMessageSize,
 	maxSendMessageSize:    defaultServerMaxSendMessageSize,
 	connectionTimeout:     120 * time.Second,
@@ -140,33 +138,7 @@ var defaultServerOptions = serverOptions{
 }
 
 // A ServerOption sets options such as credentials, codec and keepalive parameters, etc.
-type ServerOption interface {
-	apply(*serverOptions)
-}
-
-// EmptyServerOption does not alter the server configuration. It can be embedded
-// in another structure to build custom server options.
-//
-// This API is EXPERIMENTAL.
-type EmptyServerOption struct{}
-
-func (EmptyServerOption) apply(*serverOptions) {}
-
-// funcServerOption wraps a function that modifies serverOptions into an
-// implementation of the ServerOption interface.
-type funcServerOption struct {
-	f func(*serverOptions)
-}
-
-func (fdo *funcServerOption) apply(do *serverOptions) {
-	fdo.f(do)
-}
-
-func newFuncServerOption(f func(*serverOptions)) *funcServerOption {
-	return &funcServerOption{
-		f: f,
-	}
-}
+type ServerOption func(*options)
 
 // WriteBufferSize determines how much data can be batched before doing a write on the wire.
 // The corresponding memory allocation for this buffer will be twice the size to keep syscalls low.
@@ -174,9 +146,9 @@ func newFuncServerOption(f func(*serverOptions)) *funcServerOption {
 // Zero will disable the write buffer such that each write will be on underlying connection.
 // Note: A Send call may not directly translate to a write.
 func WriteBufferSize(s int) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.writeBufferSize = s
-	})
+	}
 }
 
 // ReadBufferSize lets you set the size of read buffer, this determines how much data can be read at most
@@ -185,53 +157,48 @@ func WriteBufferSize(s int) ServerOption {
 // Zero will disable read buffer for a connection so data framer can access the underlying
 // conn directly.
 func ReadBufferSize(s int) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.readBufferSize = s
-	})
+	}
 }
 
 // InitialWindowSize returns a ServerOption that sets window size for stream.
 // The lower bound for window size is 64K and any value smaller than that will be ignored.
 func InitialWindowSize(s int32) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.initialWindowSize = s
-	})
+	}
 }
 
 // InitialConnWindowSize returns a ServerOption that sets window size for a connection.
 // The lower bound for window size is 64K and any value smaller than that will be ignored.
 func InitialConnWindowSize(s int32) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.initialConnWindowSize = s
-	})
+	}
 }
 
 // KeepaliveParams returns a ServerOption that sets keepalive and max-age parameters for the server.
 func KeepaliveParams(kp keepalive.ServerParameters) ServerOption {
-	if kp.Time > 0 && kp.Time < time.Second {
-		grpclog.Warning("Adjusting keepalive ping interval to minimum period of 1s")
-		kp.Time = time.Second
-	}
-
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.keepaliveParams = kp
-	})
+	}
 }
 
 // KeepaliveEnforcementPolicy returns a ServerOption that sets keepalive enforcement policy for the server.
 func KeepaliveEnforcementPolicy(kep keepalive.EnforcementPolicy) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.keepalivePolicy = kep
-	})
+	}
 }
 
 // CustomCodec returns a ServerOption that sets a codec for message marshaling and unmarshaling.
 //
 // This will override any lookups by content-subtype for Codecs registered with RegisterCodec.
 func CustomCodec(codec Codec) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.codec = codec
-	})
+	}
 }
 
 // RPCCompressor returns a ServerOption that sets a compressor for outbound
@@ -242,9 +209,9 @@ func CustomCodec(codec Codec) ServerOption {
 //
 // Deprecated: use encoding.RegisterCompressor instead.
 func RPCCompressor(cp Compressor) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.cp = cp
-	})
+	}
 }
 
 // RPCDecompressor returns a ServerOption that sets a decompressor for inbound
@@ -253,9 +220,9 @@ func RPCCompressor(cp Compressor) ServerOption {
 //
 // Deprecated: use encoding.RegisterCompressor instead.
 func RPCDecompressor(dc Decompressor) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.dc = dc
-	})
+	}
 }
 
 // MaxMsgSize returns a ServerOption to set the max message size in bytes the server can receive.
@@ -269,73 +236,73 @@ func MaxMsgSize(m int) ServerOption {
 // MaxRecvMsgSize returns a ServerOption to set the max message size in bytes the server can receive.
 // If this is not set, gRPC uses the default 4MB.
 func MaxRecvMsgSize(m int) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.maxReceiveMessageSize = m
-	})
+	}
 }
 
 // MaxSendMsgSize returns a ServerOption to set the max message size in bytes the server can send.
-// If this is not set, gRPC uses the default `math.MaxInt32`.
+// If this is not set, gRPC uses the default 4MB.
 func MaxSendMsgSize(m int) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.maxSendMessageSize = m
-	})
+	}
 }
 
 // MaxConcurrentStreams returns a ServerOption that will apply a limit on the number
 // of concurrent streams to each ServerTransport.
 func MaxConcurrentStreams(n uint32) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.maxConcurrentStreams = n
-	})
+	}
 }
 
 // Creds returns a ServerOption that sets credentials for server connections.
 func Creds(c credentials.TransportCredentials) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.creds = c
-	})
+	}
 }
 
 // UnaryInterceptor returns a ServerOption that sets the UnaryServerInterceptor for the
 // server. Only one unary interceptor can be installed. The construction of multiple
 // interceptors (e.g., chaining) can be implemented at the caller.
 func UnaryInterceptor(i UnaryServerInterceptor) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		if o.unaryInt != nil {
 			panic("The unary server interceptor was already set and may not be reset.")
 		}
 		o.unaryInt = i
-	})
+	}
 }
 
 // StreamInterceptor returns a ServerOption that sets the StreamServerInterceptor for the
 // server. Only one stream interceptor can be installed.
 func StreamInterceptor(i StreamServerInterceptor) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		if o.streamInt != nil {
 			panic("The stream server interceptor was already set and may not be reset.")
 		}
 		o.streamInt = i
-	})
+	}
 }
 
 // InTapHandle returns a ServerOption that sets the tap handle for all the server
 // transport to be created. Only one can be installed.
 func InTapHandle(h tap.ServerInHandle) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		if o.inTapHandle != nil {
 			panic("The tap handle was already set and may not be reset.")
 		}
 		o.inTapHandle = h
-	})
+	}
 }
 
 // StatsHandler returns a ServerOption that sets the stats handler for the server.
 func StatsHandler(h stats.Handler) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.statsHandler = h
-	})
+	}
 }
 
 // UnknownServiceHandler returns a ServerOption that allows for adding a custom
@@ -345,7 +312,7 @@ func StatsHandler(h stats.Handler) ServerOption {
 // The handling function has full access to the Context of the request and the
 // stream, and the invocation bypasses interceptors.
 func UnknownServiceHandler(streamHandler StreamHandler) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.unknownStreamDesc = &StreamDesc{
 			StreamName: "unknown_service_handler",
 			Handler:    streamHandler,
@@ -353,7 +320,7 @@ func UnknownServiceHandler(streamHandler StreamHandler) ServerOption {
 			ClientStreams: true,
 			ServerStreams: true,
 		}
-	})
+	}
 }
 
 // ConnectionTimeout returns a ServerOption that sets the timeout for
@@ -363,17 +330,17 @@ func UnknownServiceHandler(streamHandler StreamHandler) ServerOption {
 //
 // This API is EXPERIMENTAL.
 func ConnectionTimeout(d time.Duration) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.connectionTimeout = d
-	})
+	}
 }
 
 // MaxHeaderListSize returns a ServerOption that sets the max (uncompressed) size
 // of header list that the server is prepared to accept.
 func MaxHeaderListSize(s uint32) ServerOption {
-	return newFuncServerOption(func(o *serverOptions) {
+	return func(o *options) {
 		o.maxHeaderListSize = &s
-	})
+	}
 }
 
 // NewServer creates a gRPC server which has no service registered and has not
@@ -381,7 +348,7 @@ func MaxHeaderListSize(s uint32) ServerOption {
 func NewServer(opt ...ServerOption) *Server {
 	opts := defaultServerOptions
 	for _, o := range opt {
-		o.apply(&opts)
+		o(&opts)
 	}
 	s := &Server{
 		lis:    make(map[net.Listener]bool),
@@ -568,7 +535,7 @@ func (s *Server) Serve(lis net.Listener) error {
 	s.lis[ls] = true
 
 	if channelz.IsOn() {
-		ls.channelzID = channelz.RegisterListenSocket(ls, s.channelzID, lis.Addr().String())
+		ls.channelzID = channelz.RegisterListenSocket(ls, s.channelzID, "")
 	}
 	s.mu.Unlock()
 
@@ -640,13 +607,12 @@ func (s *Server) handleRawConn(rawConn net.Conn) {
 	rawConn.SetDeadline(time.Now().Add(s.opts.connectionTimeout))
 	conn, authInfo, err := s.useTransportAuthenticator(rawConn)
 	if err != nil {
-		// ErrConnDispatched means that the connection was dispatched away from
-		// gRPC; those connections should be left open.
+		s.mu.Lock()
+		s.errorf("ServerHandshake(%q) failed: %v", rawConn.RemoteAddr(), err)
+		s.mu.Unlock()
+		grpclog.Warningf("grpc: Server.Serve failed to complete security handshake from %q: %v", rawConn.RemoteAddr(), err)
+		// If serverHandshake returns ErrConnDispatched, keep rawConn open.
 		if err != credentials.ErrConnDispatched {
-			s.mu.Lock()
-			s.errorf("ServerHandshake(%q) failed: %v", rawConn.RemoteAddr(), err)
-			s.mu.Unlock()
-			grpclog.Warningf("grpc: Server.Serve failed to complete security handshake from %q: %v", rawConn.RemoteAddr(), err)
 			rawConn.Close()
 		}
 		rawConn.SetDeadline(time.Time{})
@@ -775,13 +741,12 @@ func (s *Server) traceInfo(st transport.ServerTransport, stream *transport.Strea
 
 	trInfo = &traceInfo{
 		tr: tr,
-		firstLine: firstLine{
-			client:     false,
-			remoteAddr: st.RemoteAddr(),
-		},
 	}
+	trInfo.firstLine.client = false
+	trInfo.firstLine.remoteAddr = st.RemoteAddr()
+
 	if dl, ok := stream.Context().Deadline(); ok {
-		trInfo.firstLine.deadline = time.Until(dl)
+		trInfo.firstLine.deadline = dl.Sub(time.Now())
 	}
 	return trInfo
 }
@@ -887,6 +852,7 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 	}
 	if trInfo != nil {
 		defer trInfo.tr.Finish()
+		trInfo.firstLine.client = false
 		trInfo.tr.LazyLog(&trInfo.firstLine, false)
 		defer func() {
 			if err != nil && err != io.EOF {
@@ -894,30 +860,6 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 				trInfo.tr.SetError()
 			}
 		}()
-	}
-
-	binlog := binarylog.GetMethodLogger(stream.Method())
-	if binlog != nil {
-		ctx := stream.Context()
-		md, _ := metadata.FromIncomingContext(ctx)
-		logEntry := &binarylog.ClientHeader{
-			Header:     md,
-			MethodName: stream.Method(),
-			PeerAddr:   nil,
-		}
-		if deadline, ok := ctx.Deadline(); ok {
-			logEntry.Timeout = time.Until(deadline)
-			if logEntry.Timeout < 0 {
-				logEntry.Timeout = 0
-			}
-		}
-		if a := md[":authority"]; len(a) > 0 {
-			logEntry.Authority = a[0]
-		}
-		if peer, ok := peer.FromContext(ctx); ok {
-			logEntry.PeerAddr = peer.Addr
-		}
-		binlog.Log(logEntry)
 	}
 
 	// comp and cp are used for compression.  decomp and dc are used for
@@ -956,11 +898,13 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 		}
 	}
 
-	var payInfo *payloadInfo
-	if sh != nil || binlog != nil {
-		payInfo = &payloadInfo{}
+	var inPayload *stats.InPayload
+	if sh != nil {
+		inPayload = &stats.InPayload{
+			RecvTime: time.Now(),
+		}
 	}
-	d, err := recvAndDecompress(&parser{r: stream}, stream, dc, s.opts.maxReceiveMessageSize, payInfo, decomp)
+	d, err := recvAndDecompress(&parser{r: stream}, stream, dc, s.opts.maxReceiveMessageSize, inPayload, decomp)
 	if err != nil {
 		if st, ok := status.FromError(err); ok {
 			if e := t.WriteStatus(stream, st); e != nil {
@@ -976,18 +920,11 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 		if err := s.getCodec(stream.ContentSubtype()).Unmarshal(d, v); err != nil {
 			return status.Errorf(codes.Internal, "grpc: error unmarshalling request: %v", err)
 		}
-		if sh != nil {
-			sh.HandleRPC(stream.Context(), &stats.InPayload{
-				RecvTime: time.Now(),
-				Payload:  v,
-				Data:     d,
-				Length:   len(d),
-			})
-		}
-		if binlog != nil {
-			binlog.Log(&binarylog.ClientMessage{
-				Message: d,
-			})
+		if inPayload != nil {
+			inPayload.Payload = v
+			inPayload.Data = d
+			inPayload.Length = len(d)
+			sh.HandleRPC(stream.Context(), inPayload)
 		}
 		if trInfo != nil {
 			trInfo.tr.LazyLog(&payload{sent: false, msg: v}, true)
@@ -1009,19 +946,6 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 		}
 		if e := t.WriteStatus(stream, appStatus); e != nil {
 			grpclog.Warningf("grpc: Server.processUnaryRPC failed to write status: %v", e)
-		}
-		if binlog != nil {
-			if h, _ := stream.Header(); h.Len() > 0 {
-				// Only log serverHeader if there was header. Otherwise it can
-				// be trailer only.
-				binlog.Log(&binarylog.ServerHeader{
-					Header: h,
-				})
-			}
-			binlog.Log(&binarylog.ServerTrailer{
-				Trailer: stream.Trailer(),
-				Err:     appErr,
-			})
 		}
 		return appErr
 	}
@@ -1047,26 +971,7 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 				panic(fmt.Sprintf("grpc: Unexpected error (%T) from sendResponse: %v", st, st))
 			}
 		}
-		if binlog != nil {
-			h, _ := stream.Header()
-			binlog.Log(&binarylog.ServerHeader{
-				Header: h,
-			})
-			binlog.Log(&binarylog.ServerTrailer{
-				Trailer: stream.Trailer(),
-				Err:     appErr,
-			})
-		}
 		return err
-	}
-	if binlog != nil {
-		h, _ := stream.Header()
-		binlog.Log(&binarylog.ServerHeader{
-			Header: h,
-		})
-		binlog.Log(&binarylog.ServerMessage{
-			Message: reply,
-		})
 	}
 	if channelz.IsOn() {
 		t.IncrMsgSent()
@@ -1077,14 +982,7 @@ func (s *Server) processUnaryRPC(t transport.ServerTransport, stream *transport.
 	// TODO: Should we be logging if writing status failed here, like above?
 	// Should the logging be in WriteStatus?  Should we ignore the WriteStatus
 	// error or allow the stats handler to see it?
-	err = t.WriteStatus(stream, status.New(codes.OK, ""))
-	if binlog != nil {
-		binlog.Log(&binarylog.ServerTrailer{
-			Trailer: stream.Trailer(),
-			Err:     appErr,
-		})
-	}
-	return err
+	return t.WriteStatus(stream, status.New(codes.OK, ""))
 }
 
 func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transport.Stream, srv *service, sd *StreamDesc, trInfo *traceInfo) (err error) {
@@ -1127,29 +1025,6 @@ func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transp
 		maxSendMessageSize:    s.opts.maxSendMessageSize,
 		trInfo:                trInfo,
 		statsHandler:          sh,
-	}
-
-	ss.binlog = binarylog.GetMethodLogger(stream.Method())
-	if ss.binlog != nil {
-		md, _ := metadata.FromIncomingContext(ctx)
-		logEntry := &binarylog.ClientHeader{
-			Header:     md,
-			MethodName: stream.Method(),
-			PeerAddr:   nil,
-		}
-		if deadline, ok := ctx.Deadline(); ok {
-			logEntry.Timeout = time.Until(deadline)
-			if logEntry.Timeout < 0 {
-				logEntry.Timeout = 0
-			}
-		}
-		if a := md[":authority"]; len(a) > 0 {
-			logEntry.Authority = a[0]
-		}
-		if peer, ok := peer.FromContext(ss.Context()); ok {
-			logEntry.PeerAddr = peer.Addr
-		}
-		ss.binlog.Log(logEntry)
 	}
 
 	// If dc is set and matches the stream's compression, use it.  Otherwise, try
@@ -1221,12 +1096,6 @@ func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transp
 			ss.mu.Unlock()
 		}
 		t.WriteStatus(ss.s, appStatus)
-		if ss.binlog != nil {
-			ss.binlog.Log(&binarylog.ServerTrailer{
-				Trailer: ss.s.Trailer(),
-				Err:     appErr,
-			})
-		}
 		// TODO: Should we log an error from WriteStatus here and below?
 		return appErr
 	}
@@ -1235,14 +1104,7 @@ func (s *Server) processStreamingRPC(t transport.ServerTransport, stream *transp
 		ss.trInfo.tr.LazyLog(stringer("OK"), false)
 		ss.mu.Unlock()
 	}
-	err = t.WriteStatus(ss.s, status.New(codes.OK, ""))
-	if ss.binlog != nil {
-		ss.binlog.Log(&binarylog.ServerTrailer{
-			Trailer: ss.s.Trailer(),
-			Err:     appErr,
-		})
-	}
-	return err
+	return t.WriteStatus(ss.s, status.New(codes.OK, ""))
 }
 
 func (s *Server) handleStream(t transport.ServerTransport, stream *transport.Stream, trInfo *traceInfo) {
@@ -1272,8 +1134,7 @@ func (s *Server) handleStream(t transport.ServerTransport, stream *transport.Str
 	service := sm[:pos]
 	method := sm[pos+1:]
 
-	srv, knownService := s.m[service]
-	if knownService {
+	if srv, ok := s.m[service]; ok {
 		if md, ok := srv.md[method]; ok {
 			s.processUnaryRPC(t, stream, srv, md, trInfo)
 			return
@@ -1288,16 +1149,11 @@ func (s *Server) handleStream(t transport.ServerTransport, stream *transport.Str
 		s.processStreamingRPC(t, stream, nil, unknownDesc, trInfo)
 		return
 	}
-	var errDesc string
-	if !knownService {
-		errDesc = fmt.Sprintf("unknown service %v", service)
-	} else {
-		errDesc = fmt.Sprintf("unknown method %v for service %v", method, service)
-	}
 	if trInfo != nil {
-		trInfo.tr.LazyPrintf("%s", errDesc)
+		trInfo.tr.LazyLog(&fmtStringer{"Unknown service %v", []interface{}{service}}, true)
 		trInfo.tr.SetError()
 	}
+	errDesc := fmt.Sprintf("unknown service %v", service)
 	if err := t.WriteStatus(stream, status.New(codes.Unimplemented, errDesc)); err != nil {
 		if trInfo != nil {
 			trInfo.tr.LazyLog(&fmtStringer{"%v", []interface{}{err}}, true)
