@@ -29,6 +29,7 @@ import (
 	"knative.dev/pkg/webhook/resourcesemantics"
 
 	"github.com/mattmoor/foo-binding/pkg/apis/bindings/v1alpha1"
+	"github.com/mattmoor/foo-binding/pkg/reconciler/foobinding"
 )
 
 func NewResourceAdmissionController(ctx context.Context, cmw configmap.Watcher) *controller.Impl {
@@ -63,8 +64,14 @@ func main() {
 	})
 
 	sharedmain.MainWithContext(ctx, "webhook",
+		// Our singleton certificate controller.
 		certificates.NewController,
+
+		// Our singleton webhook admission controllers
 		NewResourceAdmissionController,
 		// TODO(mattmoor): Support config validation in eventing-contrib.
+
+		// Our actual controllers
+		foobinding.NewController,
 	)
 }

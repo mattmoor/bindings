@@ -41,14 +41,15 @@ spec:
         # and substituted here.
         image: github.com/mattmoor/foo-binding/cmd/webhook
         resources:
-          # Request 2x what we saw running e2e
           requests:
-            cpu: 20m
-            memory: 20Mi
-          # Limit to 10x the request (20x the observed peak during e2e)
+            cpu: 100m
+            memory: 100Mi
           limits:
-            cpu: 200m
-            memory: 200Mi
+            cpu: 1000m
+            memory: 1000Mi
+        ports:
+        - name: metrics
+          containerPort: 9090
         env:
         - name: SYSTEM_NAMESPACE
           valueFrom:
@@ -56,5 +57,7 @@ spec:
               fieldPath: metadata.namespace
         - name: CONFIG_LOGGING_NAME
           value: config-logging
+        - name: CONFIG_OBSERVABILITY_NAME
+          value: config-observability
         - name: METRICS_DOMAIN
-          value: mattmoor.dev/bindings
+          value: knative.dev/samples
