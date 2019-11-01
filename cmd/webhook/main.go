@@ -29,7 +29,8 @@ import (
 	"knative.dev/pkg/webhook/resourcesemantics"
 
 	"github.com/mattmoor/foo-binding/pkg/apis/bindings/v1alpha1"
-	"github.com/mattmoor/foo-binding/pkg/reconciler/foobinding"
+	fbreconciler "github.com/mattmoor/foo-binding/pkg/reconciler/foobinding"
+	fbwebhook "github.com/mattmoor/foo-binding/pkg/webhook/foobinding"
 )
 
 func NewResourceAdmissionController(ctx context.Context, cmw configmap.Watcher) *controller.Impl {
@@ -69,9 +70,18 @@ func main() {
 
 		// Our singleton webhook admission controllers
 		NewResourceAdmissionController,
-		// TODO(mattmoor): Support config validation in eventing-contrib.
+		// TODO(mattmoor): Support config validation
+		func(ctx context.Context, cmw configmap.Watcher) *controller.Impl {
+			return fbwebhook.NewAdmissionController(ctx,
+				// Name of the resource webhook.
+				"foobindings.webhook.bindings.mattmoor.dev",
+
+				// The path on which to serve the webhook.
+				"/foo-binding",
+			)
+		},
 
 		// Our actual controllers
-		foobinding.NewController,
+		fbreconciler.NewController,
 	)
 }

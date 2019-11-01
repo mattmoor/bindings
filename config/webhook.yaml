@@ -19,6 +19,7 @@ metadata:
   namespace: binding-system
   labels:
     bindings.mattmoor.dev/release: devel
+    bindings.mattmoor.dev/exclude: "true"
 spec:
   replicas: 1
   selector:
@@ -33,6 +34,7 @@ spec:
         app: webhook
         role: webhook
         bindings.mattmoor.dev/release: devel
+        bindings.mattmoor.dev/exclude: "true"
     spec:
       serviceAccountName: controller
       containers:

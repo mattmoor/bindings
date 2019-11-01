@@ -87,10 +87,6 @@ func (r *Reconciler) Reconcile(ctx context.Context, key string) error {
 		return nil
 	}
 
-	// If our controller has configuration state, we'd "freeze" it and
-	// attach the frozen configuration to the context.
-	//    ctx = r.configStore.ToContext(ctx)
-
 	// Get the resource with this namespace/name.
 	original, err := r.Lister.FooBindings(namespace).Get(name)
 	if apierrs.IsNotFound(err) {
