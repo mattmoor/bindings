@@ -1,0 +1,12 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: runtime
+spec:
+  template:
+    spec:
+      containers:
+      - image: gcr.io/mattmoor-knative/runtime:latest
+        # env:
+        # - name: "BAR"
+        #   value: "is it still there?"
