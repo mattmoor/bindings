@@ -1,3 +1,19 @@
+apiVersion: bindings.mattmoor.dev/v1alpha1
+kind: SinkBinding
+metadata:
+  name: bind-job
+spec:
+  target:
+    apiVersion: batch/v1
+    kind: Job
+    name: curl
+
+  sink:
+    ref:
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: sockeye
+---
 apiVersion: batch/v1
 kind: Job
 metadata:

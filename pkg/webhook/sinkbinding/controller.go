@@ -25,6 +25,7 @@ import (
 	mwhinformer "knative.dev/pkg/client/injection/kube/informers/admissionregistration/v1beta1/mutatingwebhookconfiguration"
 	secretinformer "knative.dev/pkg/client/injection/kube/informers/core/v1/secret"
 
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/logging"
@@ -60,27 +61,29 @@ func NewAdmissionController(
 	logger := logging.FromContext(ctx)
 	c := controller.NewImpl(wh, logger, "SinkBindingWebhook")
 
-	wh.resolver = resolver.NewURIResolver(ctx, c.EnqueueKey)
+	wh.resolver = resolver.NewURIResolver(ctx, func(types.NamespacedName) {
+		// We don't enqueue work in the webhook when the resolved target changes,
+		// that is the responsibility of the controller.
+	})
+
+	// It doesn't matter what we enqueue because we will always Reconcile
+	// the named MWH resource.
+	handler := controller.HandleAll(c.EnqueueSentinel(types.NamespacedName{}))
 
 	// Reconcile when the named MutatingWebhookConfiguration changes.
 	mwhInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
 		FilterFunc: controller.FilterWithName(name),
-		// It doesn't matter what we enqueue because we will always Reconcile
-		// the named MWH resource.
-		Handler: controller.HandleAll(c.Enqueue),
+		Handler:    handler,
 	})
 
 	// Reconcile when the cert bundle changes.
 	secretInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
 		FilterFunc: controller.FilterWithNameAndNamespace(system.Namespace(), wh.secretName),
-		// It doesn't matter what we enqueue because we will always Reconcile
-		// the named MWH resource.
-		Handler: controller.HandleAll(c.Enqueue),
+		Handler:    handler,
 	})
 
 	// Whenever a SinkBinding changes our webhook programming might change.
-	// TODO(mattmoor): knative/pkg#839
-	fbInformer.Informer().AddEventHandler(controller.HandleAll(c.Enqueue))
+	fbInformer.Informer().AddEventHandler(handler)
 
 	return c
 }

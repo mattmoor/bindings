@@ -22,7 +22,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
 	duckv1beta1 "knative.dev/pkg/apis/duck/v1beta1"
-	apisv1alpha1 "knative.dev/pkg/apis/v1alpha1"
 	"knative.dev/pkg/kmeta"
 )
 
@@ -58,7 +57,7 @@ type SinkBindingSpec struct {
 	Target corev1.ObjectReference `json:"target"`
 
 	// TODO(mattmoor): Add a comment
-	Sink apisv1alpha1.Destination `json:"sink"`
+	Sink duckv1beta1.Destination `json:"sink"`
 }
 
 const (

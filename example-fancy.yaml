@@ -1,0 +1,37 @@
+apiVersion: bindings.mattmoor.dev/v1alpha1
+kind: SinkBinding
+metadata:
+  name: bind-fancy
+spec:
+  target:
+    apiVersion: batch/v1
+    kind: Job
+    name: fancy
+
+  sink:
+    ref:
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: proxy
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fancy
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: curl
+        image: gcr.io/mattmoor-knative/curl
+        command: ["/bin/bash"]
+        args:
+        - "-c"
+        - |
+            curl -X POST -H "Content-Type: application/json" \
+            -H "ce-specversion: 1.0" \
+            -H "ce-source: curl-command" \
+            -H "ce-type: curl.demo" \
+            -H "ce-id: 123-abc" \
+            -d '{"name":"Hello from a Job (through a Service)"}' $SINK

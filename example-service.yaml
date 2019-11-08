@@ -1,9 +1,27 @@
+apiVersion: bindings.mattmoor.dev/v1alpha1
+kind: SinkBinding
+metadata:
+  name: bind-service
+spec:
+  target:
+    apiVersion: serving.knative.dev/v1
+    kind: Service
+    name: proxy
+
+  sink:
+    ref:
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: sockeye
+---
 apiVersion: serving.knative.dev/v1
 kind: Service
 metadata:
-  name: runtime
+  name: proxy
 spec:
   template:
     spec:
       containers:
-      - image: gcr.io/mattmoor-knative/runtime:latest
+      - image: github.com/mattmoor/foo-binding/cmd/proxy
+---
+# curl -X POST -H "Content-Type: application/json"  -H "ce-specversion: 1.0"  -H "ce-source: curl-command"  -H "ce-type: curl.demo"  -H "ce-id: 123-abc"  -d '{"name":"I went through a Knative Service"}' http://proxy.default.mattmoor.io

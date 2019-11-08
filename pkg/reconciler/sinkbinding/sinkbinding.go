@@ -182,14 +182,17 @@ func (r *Reconciler) reconcileDeletion(ctx context.Context, fb *v1alpha1.SinkBin
 	}
 
 	logger.Infof("Removing the binding for %s", fb.Name)
-	if err := r.reconcileTarget(ctx, fb, fb.Undo); err != nil {
+	err := r.reconcileTarget(ctx, fb, fb.Undo)
+	if apierrs.IsNotFound(err) {
+		// Everything is fine.
+	} else if err != nil {
 		return err
 	}
 
 	// Update the Ingress to remove the Finalizer.
 	logger.Info("Removing Finalizer")
 	fb.SetFinalizers(fb.GetFinalizers()[1:])
-	_, err := r.Client.BindingsV1alpha1().SinkBindings(fb.Namespace).Update(fb)
+	_, err = r.Client.BindingsV1alpha1().SinkBindings(fb.Namespace).Update(fb)
 	return err
 }
 
@@ -243,6 +246,8 @@ func (r *Reconciler) reconcileTarget(ctx context.Context, fb *v1alpha1.SinkBindi
 
 		logger.Infof("Applying patch: %s", string(patchBytes))
 
+		// TODO(mattmoor): This might fail because a binding changed after
+		// a Job started or completed, which can be fine.
 		_, err = r.DynamicClient.Resource(gvr).Namespace(ps.Namespace).Patch(ps.Name, types.JSONPatchType,
 			patchBytes, metav1.PatchOptions{})
 		if err != nil {
