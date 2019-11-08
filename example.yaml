@@ -4,16 +4,22 @@ metadata:
   name: test
 spec:
   # K8s deployment
+  target:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: debug
+
+  # K8s job
   # target:
-  #   apiVersion: apps/v1
-  #   kind: Deployment
-  #   name: debug
+  #   apiVersion: batch/v1
+  #   kind: name
+  #   Job: curl
 
   # Knative Service
-  target:
-    apiVersion: serving.knative.dev/v1
-    kind: Service
-    name: runtime
+  # target:
+  #   apiVersion: serving.knative.dev/v1
+  #   kind: Service
+  #   name: runtime
 
   sink:
     ref:
