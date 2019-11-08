@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package foobinding
+package sinkbinding
 
 import (
 	"context"
@@ -41,10 +41,11 @@ import (
 	"knative.dev/pkg/apis/duck"
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/logging"
+	"knative.dev/pkg/resolver"
 	"knative.dev/pkg/tracker"
 )
 
-// Reconciler implements controller.Reconciler for FooBinding resources.
+// Reconciler implements controller.Reconciler for SinkBinding resources.
 type Reconciler struct {
 	// Client is used to write back status updates.
 	Client clientset.Interface
@@ -53,7 +54,7 @@ type Reconciler struct {
 	DynamicClient dynamic.Interface
 
 	// Listers index properties about resources
-	Lister listers.FooBindingLister
+	Lister listers.SinkBindingLister
 
 	// Factory is used for producing listers for the object references we encounter.
 	Factory duck.InformerFactory
@@ -62,6 +63,8 @@ type Reconciler struct {
 	// resources so that we can immediately react to changes to changes in
 	// tracked resources.
 	Tracker tracker.Interface
+
+	Resolver *resolver.URIResolver
 
 	// Recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.
@@ -88,7 +91,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, key string) error {
 	}
 
 	// Get the resource with this namespace/name.
-	original, err := r.Lister.FooBindings(namespace).Get(name)
+	original, err := r.Lister.SinkBindings(namespace).Get(name)
 	if apierrs.IsNotFound(err) {
 		// The resource may no longer exist, in which case we stop processing.
 		logger.Errorf("resource %q no longer exists", key)
@@ -119,7 +122,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, key string) error {
 	return reconcileErr
 }
 
-func (r *Reconciler) reconcile(ctx context.Context, fb *v1alpha1.FooBinding) error {
+func (r *Reconciler) reconcile(ctx context.Context, fb *v1alpha1.SinkBinding) error {
 	if fb.GetDeletionTimestamp() != nil {
 		// Check for a DeletionTimestamp.  If present, elide the normal reconcile logic.
 		// When a controller needs finalizer handling, it would go here.
@@ -132,7 +135,14 @@ func (r *Reconciler) reconcile(ctx context.Context, fb *v1alpha1.FooBinding) err
 		return err
 	}
 
-	if err := r.reconcileTarget(ctx, fb, fb.Do); err != nil {
+	uri, err := r.Resolver.URIFromDestination(fb.Spec.Sink, fb)
+	if err != nil {
+		return err
+	}
+
+	if err := r.reconcileTarget(ctx, fb, func(ps *v1alpha1.PodSpeccable) {
+		fb.Do(ps, uri)
+	}); err != nil {
 		return err
 	}
 
@@ -140,7 +150,7 @@ func (r *Reconciler) reconcile(ctx context.Context, fb *v1alpha1.FooBinding) err
 	return nil
 }
 
-func (r *Reconciler) ensureFinalizer(ctx context.Context, fb *v1alpha1.FooBinding) error {
+func (r *Reconciler) ensureFinalizer(ctx context.Context, fb *v1alpha1.SinkBinding) error {
 	finalizers := sets.NewString(fb.GetFinalizers()...)
 	if finalizers.Has(bindingFinalizer) {
 		return nil
@@ -157,12 +167,12 @@ func (r *Reconciler) ensureFinalizer(ctx context.Context, fb *v1alpha1.FooBindin
 		return err
 	}
 
-	_, err = r.Client.BindingsV1alpha1().FooBindings(fb.Namespace).Patch(fb.Name,
+	_, err = r.Client.BindingsV1alpha1().SinkBindings(fb.Namespace).Patch(fb.Name,
 		types.MergePatchType, patch)
 	return err
 }
 
-func (r *Reconciler) reconcileDeletion(ctx context.Context, fb *v1alpha1.FooBinding) error {
+func (r *Reconciler) reconcileDeletion(ctx context.Context, fb *v1alpha1.SinkBinding) error {
 	logger := logging.FromContext(ctx)
 
 	// If our Finalizer is first, delete the `Servers` from Gateway for this Ingress,
@@ -179,11 +189,11 @@ func (r *Reconciler) reconcileDeletion(ctx context.Context, fb *v1alpha1.FooBind
 	// Update the Ingress to remove the Finalizer.
 	logger.Info("Removing Finalizer")
 	fb.SetFinalizers(fb.GetFinalizers()[1:])
-	_, err := r.Client.BindingsV1alpha1().FooBindings(fb.Namespace).Update(fb)
+	_, err := r.Client.BindingsV1alpha1().SinkBindings(fb.Namespace).Update(fb)
 	return err
 }
 
-func (r *Reconciler) reconcileTarget(ctx context.Context, fb *v1alpha1.FooBinding, mutation func(*v1alpha1.PodSpeccable)) error {
+func (r *Reconciler) reconcileTarget(ctx context.Context, fb *v1alpha1.SinkBinding, mutation func(*v1alpha1.PodSpeccable)) error {
 	logger := logging.FromContext(ctx)
 
 	if err := r.Tracker.Track(fb.Spec.Target, fb); err != nil {
@@ -247,8 +257,8 @@ func (r *Reconciler) reconcileTarget(ctx context.Context, fb *v1alpha1.FooBindin
 
 // Update the Status of the resource.  Caller is responsible for checking
 // for semantic differences before calling.
-func (r *Reconciler) updateStatus(desired *v1alpha1.FooBinding) (*v1alpha1.FooBinding, error) {
-	actual, err := r.Lister.FooBindings(desired.Namespace).Get(desired.Name)
+func (r *Reconciler) updateStatus(desired *v1alpha1.SinkBinding) (*v1alpha1.SinkBinding, error) {
+	actual, err := r.Lister.SinkBindings(desired.Namespace).Get(desired.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -259,5 +269,5 @@ func (r *Reconciler) updateStatus(desired *v1alpha1.FooBinding) (*v1alpha1.FooBi
 	// Don't modify the informers copy
 	existing := actual.DeepCopy()
 	existing.Status = desired.Status
-	return r.Client.BindingsV1alpha1().FooBindings(desired.Namespace).UpdateStatus(existing)
+	return r.Client.BindingsV1alpha1().SinkBindings(desired.Namespace).UpdateStatus(existing)
 }

@@ -21,13 +21,13 @@ package fake
 import (
 	"context"
 
-	foobinding "github.com/mattmoor/foo-binding/pkg/client/injection/informers/bindings/v1alpha1/foobinding"
+	sinkbinding "github.com/mattmoor/foo-binding/pkg/client/injection/informers/bindings/v1alpha1/sinkbinding"
 	fake "github.com/mattmoor/foo-binding/pkg/client/injection/informers/factory/fake"
 	controller "knative.dev/pkg/controller"
 	injection "knative.dev/pkg/injection"
 )
 
-var Get = foobinding.Get
+var Get = sinkbinding.Get
 
 func init() {
 	injection.Fake.RegisterInformer(withInformer)
@@ -35,6 +35,6 @@ func init() {
 
 func withInformer(ctx context.Context) (context.Context, controller.Informer) {
 	f := fake.Get(ctx)
-	inf := f.Bindings().V1alpha1().FooBindings()
-	return context.WithValue(ctx, foobinding.Key{}, inf), inf.Informer()
+	inf := f.Bindings().V1alpha1().SinkBindings()
+	return context.WithValue(ctx, sinkbinding.Key{}, inf), inf.Informer()
 }

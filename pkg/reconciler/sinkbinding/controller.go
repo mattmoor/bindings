@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package foobinding
+package sinkbinding
 
 import (
 	"context"
 
 	fbclient "github.com/mattmoor/foo-binding/pkg/client/injection/client"
-	fbinformer "github.com/mattmoor/foo-binding/pkg/client/injection/informers/bindings/v1alpha1/foobinding"
+	fbinformer "github.com/mattmoor/foo-binding/pkg/client/injection/informers/bindings/v1alpha1/sinkbinding"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -30,13 +30,14 @@ import (
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/injection/clients/dynamicclient"
 	"knative.dev/pkg/logging"
+	"knative.dev/pkg/resolver"
 	"knative.dev/pkg/tracker"
 
 	"github.com/mattmoor/foo-binding/pkg/apis/bindings/v1alpha1"
 )
 
 const (
-	controllerAgentName = "foobinding-controller"
+	controllerAgentName = "sinkbinding-controller"
 )
 
 // NewController returns a new HPA reconcile controller.
@@ -48,6 +49,7 @@ func NewController(
 
 	fbInformer := fbinformer.Get(ctx)
 	dc := dynamicclient.Get(ctx)
+
 	psInformerFactory := &duck.TypedInformerFactory{
 		Client:       dc,
 		Type:         &v1alpha1.PodSpeccable{},
@@ -62,11 +64,13 @@ func NewController(
 		Recorder: record.NewBroadcaster().NewRecorder(
 			scheme.Scheme, corev1.EventSource{Component: controllerAgentName}),
 	}
-	impl := controller.NewImpl(c, logger, "FooBindings")
+	impl := controller.NewImpl(c, logger, "SinkBindings")
 
 	logger.Info("Setting up event handlers")
 
 	fbInformer.Informer().AddEventHandler(controller.HandleAll(impl.Enqueue))
+
+	c.Resolver = resolver.NewURIResolver(ctx, impl.EnqueueKey)
 
 	c.Tracker = tracker.New(impl.EnqueueKey, controller.GetTrackerLease(ctx))
 	c.Factory = &duck.CachedInformerFactory{

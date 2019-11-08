@@ -24,8 +24,8 @@ import (
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// FooBindings returns a FooBindingInformer.
-	FooBindings() FooBindingInformer
+	// SinkBindings returns a SinkBindingInformer.
+	SinkBindings() SinkBindingInformer
 }
 
 type version struct {
@@ -39,7 +39,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// FooBindings returns a FooBindingInformer.
-func (v *version) FooBindings() FooBindingInformer {
-	return &fooBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// SinkBindings returns a SinkBindingInformer.
+func (v *version) SinkBindings() SinkBindingInformer {
+	return &sinkBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

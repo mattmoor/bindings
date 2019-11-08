@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package foobinding
+package sinkbinding
 
 import (
 	"context"
 
 	// Injection stuff
-	fbinformer "github.com/mattmoor/foo-binding/pkg/client/injection/informers/bindings/v1alpha1/foobinding"
+	fbinformer "github.com/mattmoor/foo-binding/pkg/client/injection/informers/bindings/v1alpha1/sinkbinding"
 	kubeclient "knative.dev/pkg/client/injection/kube/client"
 	mwhinformer "knative.dev/pkg/client/injection/kube/informers/admissionregistration/v1beta1/mutatingwebhookconfiguration"
 	secretinformer "knative.dev/pkg/client/injection/kube/informers/core/v1/secret"
@@ -28,6 +28,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/logging"
+	"knative.dev/pkg/resolver"
 	"knative.dev/pkg/system"
 	"knative.dev/pkg/webhook"
 )
@@ -57,7 +58,9 @@ func NewAdmissionController(
 	}
 
 	logger := logging.FromContext(ctx)
-	c := controller.NewImpl(wh, logger, "FooBindingWebhook")
+	c := controller.NewImpl(wh, logger, "SinkBindingWebhook")
+
+	wh.resolver = resolver.NewURIResolver(ctx, c.EnqueueKey)
 
 	// Reconcile when the named MutatingWebhookConfiguration changes.
 	mwhInformer.Informer().AddEventHandler(cache.FilteringResourceEventHandler{
@@ -75,7 +78,7 @@ func NewAdmissionController(
 		Handler: controller.HandleAll(c.Enqueue),
 	})
 
-	// Whenever a FooBinding changes our webhook programming might change.
+	// Whenever a SinkBinding changes our webhook programming might change.
 	// TODO(mattmoor): knative/pkg#839
 	fbInformer.Informer().AddEventHandler(controller.HandleAll(c.Enqueue))
 

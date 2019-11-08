@@ -25,49 +25,49 @@ import (
 var condSet = apis.NewLivingConditionSet()
 
 // GetGroupVersionKind implements kmeta.OwnerRefable
-func (fb *FooBinding) GetGroupVersionKind() schema.GroupVersionKind {
-	return SchemeGroupVersion.WithKind("FooBinding")
+func (fb *SinkBinding) GetGroupVersionKind() schema.GroupVersionKind {
+	return SchemeGroupVersion.WithKind("SinkBinding")
 }
 
-func (fbs *FooBindingStatus) InitializeConditions() {
+func (fbs *SinkBindingStatus) InitializeConditions() {
 	condSet.Manage(fbs).InitializeConditions()
 }
 
-func (fbs *FooBindingStatus) MarkBindingUnavailable(reason, message string) {
+func (fbs *SinkBindingStatus) MarkBindingUnavailable(reason, message string) {
 	condSet.Manage(fbs).MarkFalse(
-		FooBindingConditionReady,
+		SinkBindingConditionReady,
 		reason, message)
 }
 
-func (fbs *FooBindingStatus) MarkBindingAvailable() {
-	condSet.Manage(fbs).MarkTrue(FooBindingConditionReady)
+func (fbs *SinkBindingStatus) MarkBindingAvailable() {
+	condSet.Manage(fbs).MarkTrue(SinkBindingConditionReady)
 }
 
-func (fb *FooBinding) Do(ps *PodSpeccable) {
+func (fb *SinkBinding) Do(ps *PodSpeccable, uri string) {
 	spec := ps.Spec.Template.Spec
 	for i, c := range spec.Containers {
 		found := false
 		for j, ev := range c.Env {
 			if ev.Name == "FOO" {
-				spec.Containers[i].Env[j].Value = fb.Spec.Value
+				spec.Containers[i].Env[j].Value = "Awesomesauce"
 				found = true
 				break
 			}
 		}
 		if !found {
 			spec.Containers[i].Env = append(spec.Containers[i].Env, corev1.EnvVar{
-				Name:  "FOO",
-				Value: fb.Spec.Value,
+				Name:  "SINK",
+				Value: uri,
 			})
 		}
 	}
 }
 
-func (fb *FooBinding) Undo(ps *PodSpeccable) {
+func (fb *SinkBinding) Undo(ps *PodSpeccable) {
 	spec := ps.Spec.Template.Spec
 	for i, c := range spec.Containers {
 		for j, ev := range c.Env {
-			if ev.Name == "FOO" {
+			if ev.Name == "SINK" {
 				spec.Containers[i].Env = append(spec.Containers[i].Env[:j], spec.Containers[i].Env[j+1:]...)
 				break
 			}

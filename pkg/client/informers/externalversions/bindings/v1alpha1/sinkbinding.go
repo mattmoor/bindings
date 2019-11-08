@@ -31,59 +31,59 @@ import (
 	cache "k8s.io/client-go/tools/cache"
 )
 
-// FooBindingInformer provides access to a shared informer and lister for
-// FooBindings.
-type FooBindingInformer interface {
+// SinkBindingInformer provides access to a shared informer and lister for
+// SinkBindings.
+type SinkBindingInformer interface {
 	Informer() cache.SharedIndexInformer
-	Lister() v1alpha1.FooBindingLister
+	Lister() v1alpha1.SinkBindingLister
 }
 
-type fooBindingInformer struct {
+type sinkBindingInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
 	tweakListOptions internalinterfaces.TweakListOptionsFunc
 	namespace        string
 }
 
-// NewFooBindingInformer constructs a new informer for FooBinding type.
+// NewSinkBindingInformer constructs a new informer for SinkBinding type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFooBindingInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredFooBindingInformer(client, namespace, resyncPeriod, indexers, nil)
+func NewSinkBindingInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
+	return NewFilteredSinkBindingInformer(client, namespace, resyncPeriod, indexers, nil)
 }
 
-// NewFilteredFooBindingInformer constructs a new informer for FooBinding type.
+// NewFilteredSinkBindingInformer constructs a new informer for SinkBinding type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
-func NewFilteredFooBindingInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
+func NewFilteredSinkBindingInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
 	return cache.NewSharedIndexInformer(
 		&cache.ListWatch{
 			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.BindingsV1alpha1().FooBindings(namespace).List(options)
+				return client.BindingsV1alpha1().SinkBindings(namespace).List(options)
 			},
 			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
 					tweakListOptions(&options)
 				}
-				return client.BindingsV1alpha1().FooBindings(namespace).Watch(options)
+				return client.BindingsV1alpha1().SinkBindings(namespace).Watch(options)
 			},
 		},
-		&bindingsv1alpha1.FooBinding{},
+		&bindingsv1alpha1.SinkBinding{},
 		resyncPeriod,
 		indexers,
 	)
 }
 
-func (f *fooBindingInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredFooBindingInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+func (f *sinkBindingInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
+	return NewFilteredSinkBindingInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
 }
 
-func (f *fooBindingInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&bindingsv1alpha1.FooBinding{}, f.defaultInformer)
+func (f *sinkBindingInformer) Informer() cache.SharedIndexInformer {
+	return f.factory.InformerFor(&bindingsv1alpha1.SinkBinding{}, f.defaultInformer)
 }
 
-func (f *fooBindingInformer) Lister() v1alpha1.FooBindingLister {
-	return v1alpha1.NewFooBindingLister(f.Informer().GetIndexer())
+func (f *sinkBindingInformer) Lister() v1alpha1.SinkBindingLister {
+	return v1alpha1.NewSinkBindingLister(f.Informer().GetIndexer())
 }

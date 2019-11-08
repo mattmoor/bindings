@@ -21,9 +21,13 @@ import (
 )
 
 // SetDefaults implements apis.Defaultable
-func (fb *FooBinding) SetDefaults(ctx context.Context) {
+func (fb *SinkBinding) SetDefaults(ctx context.Context) {
 	if fb.Spec.Target.Namespace == "" {
 		// Default the target's namespace to our namespace.
 		fb.Spec.Target.Namespace = fb.Namespace
+	}
+	if fb.Spec.Sink.Ref != nil && fb.Spec.Sink.Ref.Namespace == "" {
+		// Default the sink's namespace to our namespace.
+		fb.Spec.Sink.Ref.Namespace = fb.Namespace
 	}
 }

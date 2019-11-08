@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package foobinding
+package sinkbinding
 
 import (
 	"bytes"
@@ -27,16 +27,15 @@ import (
 
 	"github.com/markbates/inflect"
 	"github.com/mattmoor/foo-binding/pkg/apis/bindings/v1alpha1"
+	listers "github.com/mattmoor/foo-binding/pkg/client/listers/bindings/v1alpha1"
+	admissionv1beta1 "k8s.io/api/admission/v1beta1"
+	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
 	batchv1 "k8s.io/api/batch/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/sets"
-	// "github.com/mattbaird/jsonpatch"
-	listers "github.com/mattmoor/foo-binding/pkg/client/listers/bindings/v1alpha1"
-	admissionv1beta1 "k8s.io/api/admission/v1beta1"
-	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	"k8s.io/client-go/kubernetes"
 	admissionlisters "k8s.io/client-go/listers/admissionregistration/v1beta1"
 	corelisters "k8s.io/client-go/listers/core/v1"
@@ -45,6 +44,7 @@ import (
 	"knative.dev/pkg/kmp"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/ptr"
+	"knative.dev/pkg/resolver"
 	"knative.dev/pkg/system"
 	"knative.dev/pkg/webhook"
 	certresources "knative.dev/pkg/webhook/certificates/resources"
@@ -58,11 +58,13 @@ type reconciler struct {
 	client       kubernetes.Interface
 	mwhlister    admissionlisters.MutatingWebhookConfigurationLister
 	secretlister corelisters.SecretLister
-	fblister     listers.FooBindingLister
+	fblister     listers.SinkBindingLister
+
+	resolver *resolver.URIResolver
 
 	// lock protects access to index.
 	lock  sync.RWMutex
-	index map[string]*v1alpha1.FooBinding
+	index map[string]*v1alpha1.SinkBinding
 
 	secretName string
 }
@@ -110,8 +112,8 @@ func (ac *reconciler) Admit(ctx context.Context, request *admissionv1beta1.Admis
 		return webhook.MakeErrorStatus("unable to decode object: %v", err)
 	}
 
-	// Look up the FooBinding for this resource.
-	fb := func() *v1alpha1.FooBinding {
+	// Look up the SinkBinding for this resource.
+	fb := func() *v1alpha1.SinkBinding {
 		ac.lock.RLock()
 		defer ac.lock.RUnlock()
 
@@ -123,12 +125,16 @@ func (ac *reconciler) Admit(ctx context.Context, request *admissionv1beta1.Admis
 		return &admissionv1beta1.AdmissionResponse{Allowed: true}
 	}
 
-	// Mutate a copy according to the deletion state of the FooBinding.
+	// Mutate a copy according to the deletion state of the SinkBinding.
 	delta := orig.DeepCopy()
 	if fb.GetDeletionTimestamp() != nil {
 		fb.Undo(delta)
 	} else {
-		fb.Do(delta)
+		uri, err := ac.resolver.URIFromDestination(fb.Spec.Sink, fb)
+		if err != nil {
+			return webhook.MakeErrorStatus("unable to resolve sink: %v", err)
+		}
+		fb.Do(delta, uri)
 	}
 
 	// Synthesize a patch from the changes and return it in our AdmissionResponse
@@ -171,7 +177,7 @@ func (ac *reconciler) reconcileMutatingWebhook(ctx context.Context, caCert []byt
 		batchv1.SchemeGroupVersion.WithKind("Job").GroupKind():        sets.NewString("v1"),
 	}
 
-	index := make(map[string]*v1alpha1.FooBinding, len(fbs))
+	index := make(map[string]*v1alpha1.SinkBinding, len(fbs))
 
 	for _, fb := range fbs {
 		or := fb.Spec.Target

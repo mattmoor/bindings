@@ -29,8 +29,8 @@ import (
 	"knative.dev/pkg/webhook/resourcesemantics"
 
 	"github.com/mattmoor/foo-binding/pkg/apis/bindings/v1alpha1"
-	fbreconciler "github.com/mattmoor/foo-binding/pkg/reconciler/foobinding"
-	fbwebhook "github.com/mattmoor/foo-binding/pkg/webhook/foobinding"
+	fbreconciler "github.com/mattmoor/foo-binding/pkg/reconciler/sinkbinding"
+	fbwebhook "github.com/mattmoor/foo-binding/pkg/webhook/sinkbinding"
 )
 
 func NewResourceAdmissionController(ctx context.Context, cmw configmap.Watcher) *controller.Impl {
@@ -43,7 +43,7 @@ func NewResourceAdmissionController(ctx context.Context, cmw configmap.Watcher) 
 
 		// The resources to validate and default.
 		map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
-			v1alpha1.SchemeGroupVersion.WithKind("FooBinding"): &v1alpha1.FooBinding{},
+			v1alpha1.SchemeGroupVersion.WithKind("SinkBinding"): &v1alpha1.SinkBinding{},
 		},
 
 		// A function that infuses the context passed to Validate/SetDefaults with custom metadata.
@@ -74,7 +74,7 @@ func main() {
 		func(ctx context.Context, cmw configmap.Watcher) *controller.Impl {
 			return fbwebhook.NewAdmissionController(ctx,
 				// Name of the resource webhook.
-				"foobindings.webhook.bindings.mattmoor.dev",
+				"sinkbindings.webhook.bindings.mattmoor.dev",
 
 				// The path on which to serve the webhook.
 				"/foo-binding",

@@ -26,7 +26,7 @@ import (
 
 type BindingsV1alpha1Interface interface {
 	RESTClient() rest.Interface
-	FooBindingsGetter
+	SinkBindingsGetter
 }
 
 // BindingsV1alpha1Client is used to interact with features provided by the bindings.mattmoor.dev group.
@@ -34,8 +34,8 @@ type BindingsV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *BindingsV1alpha1Client) FooBindings(namespace string) FooBindingInterface {
-	return newFooBindings(c, namespace)
+func (c *BindingsV1alpha1Client) SinkBindings(namespace string) SinkBindingInterface {
+	return newSinkBindings(c, namespace)
 }
 
 // NewForConfig creates a new BindingsV1alpha1Client for the given config.

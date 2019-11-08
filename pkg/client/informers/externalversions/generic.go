@@ -53,8 +53,8 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=bindings.mattmoor.dev, Version=v1alpha1
-	case v1alpha1.SchemeGroupVersion.WithResource("foobindings"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Bindings().V1alpha1().FooBindings().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("sinkbindings"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Bindings().V1alpha1().SinkBindings().Informer()}, nil
 
 	}
 

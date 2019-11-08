@@ -22,52 +22,53 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
 	duckv1beta1 "knative.dev/pkg/apis/duck/v1beta1"
+	apisv1alpha1 "knative.dev/pkg/apis/v1alpha1"
 	"knative.dev/pkg/kmeta"
 )
 
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// FooBinding is a Knative abstraction that encapsulates the interface by which Knative
+// SinkBinding is a Knative abstraction that encapsulates the interface by which Knative
 // components express a desire to have a particular image cached.
-type FooBinding struct {
+type SinkBinding struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Spec holds the desired state of the FooBinding (from the client).
+	// Spec holds the desired state of the SinkBinding (from the client).
 	// +optional
-	Spec FooBindingSpec `json:"spec,omitempty"`
+	Spec SinkBindingSpec `json:"spec,omitempty"`
 
-	// Status communicates the observed state of the FooBinding (from the controller).
+	// Status communicates the observed state of the SinkBinding (from the controller).
 	// +optional
-	Status FooBindingStatus `json:"status,omitempty"`
+	Status SinkBindingStatus `json:"status,omitempty"`
 }
 
-// Check that FooBinding can be validated and defaulted.
-var _ apis.Validatable = (*FooBinding)(nil)
-var _ apis.Defaultable = (*FooBinding)(nil)
-var _ kmeta.OwnerRefable = (*FooBinding)(nil)
+// Check that SinkBinding can be validated and defaulted.
+var _ apis.Validatable = (*SinkBinding)(nil)
+var _ apis.Defaultable = (*SinkBinding)(nil)
+var _ kmeta.OwnerRefable = (*SinkBinding)(nil)
 
-// FooBindingSpec holds the desired state of the FooBinding (from the client).
-type FooBindingSpec struct {
+// SinkBindingSpec holds the desired state of the SinkBinding (from the client).
+type SinkBindingSpec struct {
 
 	// Target holds a reference to the "pod speccable" Kubernetes resource which will
-	// be the target of our "Foo" binding.
+	// have the reference to our sink injected into it.
 	Target corev1.ObjectReference `json:"target"`
 
-	// Value contains the value of the environment variable to inject.
-	Value string `json:"value,omitempty"`
+	// TODO(mattmoor): Add a comment
+	Sink apisv1alpha1.Destination `json:"sink"`
 }
 
 const (
-	// FooBindingConditionReady is set when the revision is starting to materialize
+	// SinkBindingConditionReady is set when the revision is starting to materialize
 	// runtime resources, and becomes true when those resources are ready.
-	FooBindingConditionReady = apis.ConditionReady
+	SinkBindingConditionReady = apis.ConditionReady
 )
 
-// FooBindingStatus communicates the observed state of the FooBinding (from the controller).
-type FooBindingStatus struct {
+// SinkBindingStatus communicates the observed state of the SinkBinding (from the controller).
+type SinkBindingStatus struct {
 	duckv1beta1.Status `json:",inline"`
 
 	// Address holds the information needed to connect this Addressable up to receive events.
@@ -77,10 +78,10 @@ type FooBindingStatus struct {
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// FooBindingList is a list of FooBinding resources
-type FooBindingList struct {
+// SinkBindingList is a list of SinkBinding resources
+type SinkBindingList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
-	Items []FooBinding `json:"items"`
+	Items []SinkBinding `json:"items"`
 }

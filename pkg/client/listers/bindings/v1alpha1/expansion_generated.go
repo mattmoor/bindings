@@ -18,10 +18,10 @@ limitations under the License.
 
 package v1alpha1
 
-// FooBindingListerExpansion allows custom methods to be added to
-// FooBindingLister.
-type FooBindingListerExpansion interface{}
+// SinkBindingListerExpansion allows custom methods to be added to
+// SinkBindingLister.
+type SinkBindingListerExpansion interface{}
 
-// FooBindingNamespaceListerExpansion allows custom methods to be added to
-// FooBindingNamespaceLister.
-type FooBindingNamespaceListerExpansion interface{}
+// SinkBindingNamespaceListerExpansion allows custom methods to be added to
+// SinkBindingNamespaceLister.
+type SinkBindingNamespaceListerExpansion interface{}

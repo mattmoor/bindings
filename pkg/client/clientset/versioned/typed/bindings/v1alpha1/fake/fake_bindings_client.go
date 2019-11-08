@@ -28,8 +28,8 @@ type FakeBindingsV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeBindingsV1alpha1) FooBindings(namespace string) v1alpha1.FooBindingInterface {
-	return &FakeFooBindings{c, namespace}
+func (c *FakeBindingsV1alpha1) SinkBindings(namespace string) v1alpha1.SinkBindingInterface {
+	return &FakeSinkBindings{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

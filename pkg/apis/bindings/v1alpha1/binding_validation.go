@@ -24,13 +24,14 @@ import (
 )
 
 // Validate implements apis.Validatable
-func (fb *FooBinding) Validate(ctx context.Context) *apis.FieldError {
+func (fb *SinkBinding) Validate(ctx context.Context) *apis.FieldError {
 	return fb.Spec.Validate(ctx)
 }
 
 // Validate implements apis.Validatable
-func (fbs *FooBindingSpec) Validate(ctx context.Context) *apis.FieldError {
+func (fbs *SinkBindingSpec) Validate(ctx context.Context) *apis.FieldError {
 	return validateObjRef(ctx, fbs.Target).ViaField("target")
+	// TODO(mattmoor): .Also(fbs.Sink.Validate(ctx).ViaField("sink"))
 }
 
 func validateObjRef(ctx context.Context, ref corev1.ObjectReference) *apis.FieldError {
