@@ -1,0 +1,47 @@
+apiVersion: bindings.mattmoor.dev/v1alpha1
+kind: SinkBinding
+metadata:
+  name: bind-cronjob
+spec:
+  target:
+    apiVersion: batch/v1
+    kind: Job
+    selector:
+      matchLabels:
+        app: curlcron
+
+  sink:
+    ref:
+      apiVersion: serving.knative.dev/v1
+      kind: Service
+      name: proxy
+---
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: curl-a-lot
+spec:
+  # Run every minute
+  schedule: "* * * * *"
+  jobTemplate:
+    metadata:
+      labels:
+        app: curlcron
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: curl
+            image: gcr.io/mattmoor-knative/curl
+            command: ["/bin/bash"]
+            args:
+            - "-c"
+            - |
+                curl -X POST -H "Content-Type: application/json" \
+                -H "ce-specversion: 1.0" \
+                -H "ce-source: curl-command" \
+                -H "ce-type: curl.demo" \
+                -H "ce-id: 123-abc" \
+                -d '{"name":"Hello from a CronJob (via selector) through a Knative Service"}' $SINK

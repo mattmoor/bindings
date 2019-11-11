@@ -27,6 +27,7 @@ import (
 	listers "github.com/mattmoor/foo-binding/pkg/client/listers/bindings/v1alpha1"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
@@ -199,7 +200,7 @@ func (r *Reconciler) reconcileDeletion(ctx context.Context, fb *v1alpha1.SinkBin
 func (r *Reconciler) reconcileTarget(ctx context.Context, fb *v1alpha1.SinkBinding, mutation func(*v1alpha1.PodSpeccable)) error {
 	logger := logging.FromContext(ctx)
 
-	if err := r.Tracker.Track(fb.Spec.Target, fb); err != nil {
+	if err := r.Tracker.TrackReference(fb.Spec.Target, fb); err != nil {
 		logger.Errorf("Error tracking target %v: %v", fb.Spec.Target, err)
 		return err
 	}
@@ -217,45 +218,72 @@ func (r *Reconciler) reconcileTarget(ctx context.Context, fb *v1alpha1.SinkBindi
 		return fmt.Errorf("error getting a lister for resource '%+v': %w", gvr, err)
 	}
 
-	psObj, err := lister.ByNamespace(fb.Spec.Target.Namespace).Get(fb.Spec.Target.Name)
-	if apierrs.IsNotFound(err) {
-		fb.Status.MarkBindingUnavailable("TargetMissing", err.Error())
+	var referents []*v1alpha1.PodSpeccable
+	if fb.Spec.Target.Name != "" {
+		psObj, err := lister.ByNamespace(fb.Spec.Target.Namespace).Get(fb.Spec.Target.Name)
+		if apierrs.IsNotFound(err) {
+			fb.Status.MarkBindingUnavailable("TargetMissing", err.Error())
+			return err
+		} else if err != nil {
+			return fmt.Errorf("error fetching Pod Scalable %v: %w", fb.Spec.Target, err)
+		}
+		referents = append(referents, psObj.(*v1alpha1.PodSpeccable))
+	} else {
+		selector, err := metav1.LabelSelectorAsSelector(fb.Spec.Target.Selector)
+		if err != nil {
+			return err
+		}
+		psObjs, err := lister.ByNamespace(fb.Spec.Target.Namespace).List(selector)
+		if apierrs.IsNotFound(err) {
+			fb.Status.MarkBindingUnavailable("TargetMissing", err.Error())
+			return err
+		} else if err != nil {
+			return fmt.Errorf("error fetching Pod Scalable %v: %w", fb.Spec.Target, err)
+		}
+		for _, psObj := range psObjs {
+			referents = append(referents, psObj.(*v1alpha1.PodSpeccable))
+		}
+	}
+
+	eg := errgroup.Group{}
+	for _, ps := range referents {
+		ps := ps
+		eg.Go(func() error {
+			// Do the binding to the pod speccable.
+			orig := ps.DeepCopy()
+			mutation(ps)
+
+			// If nothing changed, then bail early.
+			if equality.Semantic.DeepEqual(orig, ps) {
+				return nil
+			}
+
+			patch, err := duck.CreatePatch(orig, ps)
+			if err != nil {
+				return err
+			}
+			patchBytes, err := patch.MarshalJSON()
+			if err != nil {
+				return err
+			}
+
+			logger.Infof("Applying patch: %s", string(patchBytes))
+
+			// TODO(mattmoor): This might fail because a binding changed after
+			// a Job started or completed, which can be fine.
+			_, err = r.DynamicClient.Resource(gvr).Namespace(ps.Namespace).Patch(
+				ps.Name, types.JSONPatchType, patchBytes, metav1.PatchOptions{})
+			if err != nil {
+				return errors.Wrapf(err, "failed binding target "+ps.Name)
+			}
+			return nil
+		})
+	}
+
+	if err := eg.Wait(); err != nil {
+		fb.Status.MarkBindingUnavailable("BindingFailed", err.Error())
 		return err
-	} else if err != nil {
-		return fmt.Errorf("error fetching Pod Scalable %v: %w", fb.Spec.Target, err)
 	}
-	ps := psObj.(*v1alpha1.PodSpeccable)
-
-	// Do the binding to the pod speccable.
-	orig := ps.DeepCopy()
-	mutation(ps)
-
-	// TODO(mattmoor): We won't be able to patch all PodSpeccable resources,
-	// e.g. Job, Build which are immutable, so quickly reconciling things is
-	// insufficient, we also need the capability to apply the above in our
-	// webhook so that the binding happens before things are committed to etcd.
-	if !equality.Semantic.DeepEqual(orig, ps) {
-		patch, err := duck.CreatePatch(orig, ps)
-		if err != nil {
-			return err
-		}
-		patchBytes, err := patch.MarshalJSON()
-		if err != nil {
-			return err
-		}
-
-		logger.Infof("Applying patch: %s", string(patchBytes))
-
-		// TODO(mattmoor): This might fail because a binding changed after
-		// a Job started or completed, which can be fine.
-		_, err = r.DynamicClient.Resource(gvr).Namespace(ps.Namespace).Patch(ps.Name, types.JSONPatchType,
-			patchBytes, metav1.PatchOptions{})
-		if err != nil {
-			fb.Status.MarkBindingUnavailable("PatchFailed", err.Error())
-			return errors.Wrapf(err, "failed binding target "+ps.Name)
-		}
-	}
-
 	fb.Status.MarkBindingAvailable()
 	return nil
 }

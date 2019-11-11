@@ -19,10 +19,10 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
-	corev1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
 	duckv1beta1 "knative.dev/pkg/apis/duck/v1beta1"
 	"knative.dev/pkg/kmeta"
+	"knative.dev/pkg/tracker"
 )
 
 // +genclient
@@ -51,10 +51,9 @@ var _ kmeta.OwnerRefable = (*SinkBinding)(nil)
 
 // SinkBindingSpec holds the desired state of the SinkBinding (from the client).
 type SinkBindingSpec struct {
-
 	// Target holds a reference to the "pod speccable" Kubernetes resource which will
 	// have the reference to our sink injected into it.
-	Target corev1.ObjectReference `json:"target"`
+	Target tracker.Reference `json:"target"`
 
 	// TODO(mattmoor): Add a comment
 	Sink duckv1beta1.Destination `json:"sink"`

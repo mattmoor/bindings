@@ -62,11 +62,17 @@ type reconciler struct {
 
 	resolver *resolver.URIResolver
 
-	// lock protects access to index.
-	lock  sync.RWMutex
-	index map[string]*v1alpha1.SinkBinding
+	// lock protects access to exact and inexact
+	lock    sync.RWMutex
+	exact   map[string]*v1alpha1.SinkBinding
+	inexact map[string][]pair
 
 	secretName string
+}
+
+type pair struct {
+	selector labels.Selector
+	sb       *v1alpha1.SinkBinding
 }
 
 var _ controller.Reconciler = (*reconciler)(nil)
@@ -117,8 +123,31 @@ func (ac *reconciler) Admit(ctx context.Context, request *admissionv1beta1.Admis
 		ac.lock.RLock()
 		defer ac.lock.RUnlock()
 
-		return ac.index[fmt.Sprintf("%s/%s/%s/%s", request.Kind.Group, request.Kind.Kind,
-			orig.Namespace, orig.Name)]
+		// Always try to find an exact match first.
+		key := fmt.Sprintf("%s/%s/%s/%s", request.Kind.Group, request.Kind.Kind, request.Namespace, orig.Name)
+		if sb, ok := ac.exact[key]; ok {
+			return sb
+		}
+
+		// The key for inexact omits name.
+		key = fmt.Sprintf("%s/%s/%s", request.Kind.Group, request.Kind.Kind, request.Namespace)
+		pl, ok := ac.inexact[key]
+		if !ok {
+			logger.Infof("No entry for key %q", key)
+			return nil
+		}
+
+		// Iterate over the the inexact matches for this GVK + namespace and return the first
+		// SinkBinding that matches our selector.
+		ls := labels.Set(orig.Labels)
+		for _, p := range pl {
+			if p.selector.Matches(ls) {
+				return p.sb
+			}
+		}
+		logger.Infof("No match found for key %q with %d pairs", key, len(pl))
+		// If none match, then return nil
+		return nil
 	}()
 	if fb == nil {
 		// This doesn't apply!
@@ -177,17 +206,18 @@ func (ac *reconciler) reconcileMutatingWebhook(ctx context.Context, caCert []byt
 		batchv1.SchemeGroupVersion.WithKind("Job").GroupKind():        sets.NewString("v1"),
 	}
 
-	index := make(map[string]*v1alpha1.SinkBinding, len(fbs))
+	exact := make(map[string]*v1alpha1.SinkBinding, len(fbs))
+	inexact := make(map[string][]pair, len(fbs))
 
 	for _, fb := range fbs {
-		or := fb.Spec.Target
-		gv, err := schema.ParseGroupVersion(or.APIVersion)
+		ref := fb.Spec.Target
+		gv, err := schema.ParseGroupVersion(ref.APIVersion)
 		if err != nil {
 			return err
 		}
 		gk := schema.GroupKind{
 			Group: gv.Group,
-			Kind:  or.Kind,
+			Kind:  ref.Kind,
 		}
 		set := gks[gk]
 		if set == nil {
@@ -196,14 +226,30 @@ func (ac *reconciler) reconcileMutatingWebhook(ctx context.Context, caCert []byt
 		set.Insert(gv.Version)
 		gks[gk] = set
 
-		index[fmt.Sprintf("%s/%s/%s/%s", gk.Group, gk.Kind, or.Namespace, or.Name)] = fb
+		if ref.Name != "" {
+			exact[fmt.Sprintf("%s/%s/%s/%s", gk.Group, gk.Kind, ref.Namespace, ref.Name)] = fb
+		} else {
+			selector, err := metav1.LabelSelectorAsSelector(fb.Spec.Target.Selector)
+			if err != nil {
+				return err
+			}
+			key := fmt.Sprintf("%s/%s/%s", gk.Group, gk.Kind, ref.Namespace)
+			pl := inexact[key]
+			pl = append(pl, pair{
+				selector: selector,
+				sb:       fb,
+			})
+			inexact[key] = pl
+			logger.Infof("Adding entry for %q", key)
+		}
 	}
 
-	// Update the index
+	// Update our indices
 	func() {
 		ac.lock.Lock()
 		defer ac.lock.Unlock()
-		ac.index = index
+		ac.exact = exact
+		ac.inexact = inexact
 	}()
 
 	for gk, versions := range gks {

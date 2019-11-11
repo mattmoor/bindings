@@ -19,7 +19,6 @@ package v1alpha1
 import (
 	"context"
 
-	corev1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
 )
 
@@ -30,23 +29,6 @@ func (fb *SinkBinding) Validate(ctx context.Context) *apis.FieldError {
 
 // Validate implements apis.Validatable
 func (fbs *SinkBindingSpec) Validate(ctx context.Context) *apis.FieldError {
-	return validateObjRef(ctx, fbs.Target).ViaField("target")
-	// TODO(mattmoor): .Also(fbs.Sink.Validate(ctx).ViaField("sink"))
-}
-
-func validateObjRef(ctx context.Context, ref corev1.ObjectReference) *apis.FieldError {
-	var errs *apis.FieldError
-	if ref.APIVersion == "" {
-		errs = errs.Also(apis.ErrMissingField("apiVersion"))
-	}
-	if ref.Kind == "" {
-		errs = errs.Also(apis.ErrMissingField("kind"))
-	}
-	if ref.Name == "" {
-		errs = errs.Also(apis.ErrMissingField("name"))
-	}
-	if ref.Namespace == "" {
-		errs = errs.Also(apis.ErrMissingField("namespace"))
-	}
-	return errs
+	return fbs.Target.Validate(ctx).ViaField("target").Also(
+		fbs.Sink.Validate(ctx).ViaField("sink"))
 }

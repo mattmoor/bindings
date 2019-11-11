@@ -1013,7 +1013,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:44f1a2f80e6fde07108ca264172aaf06870c8504da8e58ad2e8f8cf0c14f7032"
+  digest = "1:c54c893841ac2758d1eb094951e204d99eeff6caa7edd753e0594fdecc235b80"
   name = "knative.dev/pkg"
   packages = [
     "apis",
@@ -1053,7 +1053,7 @@
     "webhook/resourcesemantics",
   ]
   pruneopts = "T"
-  revision = "e4e8788a2c5f8af852c5de3de61c267ac4609900"
+  revision = "6d806b998379948bd0107d77bcd831e2bdb4f3cb"
 
 [[projects]]
   branch = "master"
@@ -1083,6 +1083,7 @@
     "github.com/markbates/inflect",
     "github.com/pkg/errors",
     "go.uber.org/zap",
+    "golang.org/x/sync/errgroup",
     "k8s.io/api/admission/v1beta1",
     "k8s.io/api/admissionregistration/v1beta1",
     "k8s.io/api/apps/v1",
