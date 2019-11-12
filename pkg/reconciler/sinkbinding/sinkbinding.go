@@ -140,6 +140,10 @@ func (r *Reconciler) reconcile(ctx context.Context, fb *v1alpha1.SinkBinding) er
 	if err != nil {
 		return err
 	}
+	fb.Status.SinkURI, err = apis.ParseURL(uri)
+	if err != nil {
+		return err
+	}
 
 	if err := r.reconcileTarget(ctx, fb, func(ps *v1alpha1.PodSpeccable) {
 		fb.Do(ps, uri)

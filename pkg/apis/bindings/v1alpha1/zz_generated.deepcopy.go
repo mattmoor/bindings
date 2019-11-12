@@ -22,6 +22,7 @@ package v1alpha1
 
 import (
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	apis "knative.dev/pkg/apis"
 	v1beta1 "knative.dev/pkg/apis/duck/v1beta1"
 )
 
@@ -168,6 +169,11 @@ func (in *SinkBindingSpec) DeepCopyInto(out *SinkBindingSpec) {
 	*out = *in
 	in.Target.DeepCopyInto(&out.Target)
 	in.Sink.DeepCopyInto(&out.Sink)
+	if in.CloudEventOverrides != nil {
+		in, out := &in.CloudEventOverrides, &out.CloudEventOverrides
+		*out = new(v1beta1.CloudEventOverrides)
+		(*in).DeepCopyInto(*out)
+	}
 	return
 }
 
@@ -185,9 +191,9 @@ func (in *SinkBindingSpec) DeepCopy() *SinkBindingSpec {
 func (in *SinkBindingStatus) DeepCopyInto(out *SinkBindingStatus) {
 	*out = *in
 	in.Status.DeepCopyInto(&out.Status)
-	if in.Address != nil {
-		in, out := &in.Address, &out.Address
-		*out = new(v1beta1.Addressable)
+	if in.SinkURI != nil {
+		in, out := &in.SinkURI, &out.SinkURI
+		*out = new(apis.URL)
 		(*in).DeepCopyInto(*out)
 	}
 	return

@@ -57,6 +57,11 @@ type SinkBindingSpec struct {
 
 	// TODO(mattmoor): Add a comment
 	Sink duckv1beta1.Destination `json:"sink"`
+
+	// CloudEventOverrides defines overrides to control the output format and
+	// modifications of the event sent to the sink.
+	// +optional
+	CloudEventOverrides *duckv1beta1.CloudEventOverrides `json:"ceOverrides,omitempty"`
 }
 
 const (
@@ -69,9 +74,10 @@ const (
 type SinkBindingStatus struct {
 	duckv1beta1.Status `json:",inline"`
 
-	// Address holds the information needed to connect this Addressable up to receive events.
+	// SinkURI is the current active sink URI that has been configured for the
+	// Source.
 	// +optional
-	Address *duckv1beta1.Addressable `json:"address,omitempty"`
+	SinkURI *apis.URL `json:"sinkUri,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
