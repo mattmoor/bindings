@@ -61,17 +61,3 @@ rules:
   - apiGroups: ["batch"]
     resources: ["jobs"]
     verbs: ["get", "list", "patch", "watch"]
----
-# This piece of the aggregated cluster role enables us to bind to
-# Knative service resources
-kind: ClusterRole
-apiVersion: rbac.authorization.k8s.io/v1
-metadata:
-  name: binding-system-knative-serving
-  labels:
-    bindings.mattmoor.dev/release: devel
-    bindings.mattmoor.dev/controller: "true"
-rules:
-  - apiGroups: ["serving.knative.dev"]
-    resources: ["services", "configurations"]
-    verbs: ["get", "list", "patch", "watch"]
