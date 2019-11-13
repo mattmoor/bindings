@@ -39,6 +39,7 @@ metadata:
     bindings.mattmoor.dev/release: devel
     bindings.mattmoor.dev/controller: "true"
     duck.knative.dev/source: "true"
+    eventing.knative.dev/source: "true"
 rules:
   - apiGroups: ["bindings.mattmoor.dev"]
     resources: ["*"]
