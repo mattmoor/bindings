@@ -3,15 +3,16 @@ kind: SinkBinding
 metadata:
   name: bind-service
 spec:
+  target:
+    apiVersion: serving.knative.dev/v1
+    kind: Service
+    name: proxy
+
   sink:
     ref:
       apiVersion: serving.knative.dev/v1
       kind: Service
       name: sockeye
-  target:
-    apiVersion: serving.knative.dev/v1
-    kind: Service
-    name: proxy
 ---
 apiVersion: serving.knative.dev/v1
 kind: Service
@@ -21,6 +22,6 @@ spec:
   template:
     spec:
       containers:
-      - image: gcr.io/mattmoor-knative/proxy@sha256:f05775237438f06a62d22d93692ad560e3d925a49fa028eb9c95eb020386cf9c
+      - image: github.com/mattmoor/foo-binding/cmd/proxy
 ---
 # curl -X POST -H "Content-Type: application/json"  -H "ce-specversion: 1.0"  -H "ce-source: curl-command"  -H "ce-type: curl.demo"  -H "ce-id: 123-abc"  -d '{"name":"I went through a Knative Service"}' http://proxy.default.ducktagon.io
