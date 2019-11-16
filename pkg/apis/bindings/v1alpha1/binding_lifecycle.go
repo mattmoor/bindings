@@ -48,8 +48,8 @@ func (fb *SinkBinding) Do(ps *PodSpeccable, uri string) {
 	for i, c := range spec.Containers {
 		found := false
 		for j, ev := range c.Env {
-			if ev.Name == "FOO" {
-				spec.Containers[i].Env[j].Value = "Awesomesauce"
+			if ev.Name == "SINK" {
+				spec.Containers[i].Env[j].Value = uri
 				found = true
 				break
 			}
