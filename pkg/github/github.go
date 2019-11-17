@@ -23,11 +23,13 @@ import (
 
 	"github.com/google/go-github/github"
 	"golang.org/x/oauth2"
+
+	"github.com/mattmoor/bindings/pkg/bindings"
 )
 
 const (
 	VolumeName = "github-binding"
-	MountPath  = "/var/bindings/github"
+	MountPath  = bindings.MountPath + "/github" // filepath.Join isn't const.
 )
 
 // ReadKey may be used to read keys from the secret bound by the GithubBinding.
