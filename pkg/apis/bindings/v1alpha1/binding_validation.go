@@ -29,7 +29,7 @@ func (fb *GithubBinding) Validate(ctx context.Context) *apis.FieldError {
 
 // Validate implements apis.Validatable
 func (fbs *GithubBindingSpec) Validate(ctx context.Context) *apis.FieldError {
-	err := fbs.Subject.Validate(ctx).ViaField("target")
+	err := fbs.Subject.Validate(ctx).ViaField("subject")
 
 	if fbs.Secret.Name == "" {
 		err = err.Also(apis.ErrMissingField("name").ViaField("secret"))

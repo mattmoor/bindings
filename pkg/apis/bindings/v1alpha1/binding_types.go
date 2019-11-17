@@ -54,7 +54,7 @@ var _ kmeta.OwnerRefable = (*GithubBinding)(nil)
 type GithubBindingSpec struct {
 	// Subject holds a reference to the "pod speccable" Kubernetes resource which will
 	// be bound with Github secret data.
-	Subject tracker.Reference `json:"target"`
+	Subject tracker.Reference `json:"subject"`
 
 	// Secret holds a reference to a secret containing the Github auth data.
 	Secret corev1.LocalObjectReference `json:"secret"`
