@@ -19,13 +19,13 @@ limitations under the License.
 package v1alpha1
 
 import (
-	internalinterfaces "github.com/mattmoor/foo-binding/pkg/client/informers/externalversions/internalinterfaces"
+	internalinterfaces "github.com/mattmoor/bindings/pkg/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to all the informers in this group version.
 type Interface interface {
-	// SinkBindings returns a SinkBindingInformer.
-	SinkBindings() SinkBindingInformer
+	// GithubBindings returns a GithubBindingInformer.
+	GithubBindings() GithubBindingInformer
 }
 
 type version struct {
@@ -39,7 +39,7 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// SinkBindings returns a SinkBindingInformer.
-func (v *version) SinkBindings() SinkBindingInformer {
-	return &sinkBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+// GithubBindings returns a GithubBindingInformer.
+func (v *version) GithubBindings() GithubBindingInformer {
+	return &githubBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

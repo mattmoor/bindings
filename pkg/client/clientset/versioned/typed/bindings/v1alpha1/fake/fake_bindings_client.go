@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	v1alpha1 "github.com/mattmoor/foo-binding/pkg/client/clientset/versioned/typed/bindings/v1alpha1"
+	v1alpha1 "github.com/mattmoor/bindings/pkg/client/clientset/versioned/typed/bindings/v1alpha1"
 	rest "k8s.io/client-go/rest"
 	testing "k8s.io/client-go/testing"
 )
@@ -28,8 +28,8 @@ type FakeBindingsV1alpha1 struct {
 	*testing.Fake
 }
 
-func (c *FakeBindingsV1alpha1) SinkBindings(namespace string) v1alpha1.SinkBindingInterface {
-	return &FakeSinkBindings{c, namespace}
+func (c *FakeBindingsV1alpha1) GithubBindings(namespace string) v1alpha1.GithubBindingInterface {
+	return &FakeGithubBindings{c, namespace}
 }
 
 // RESTClient returns a RESTClient that is used to communicate

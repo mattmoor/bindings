@@ -19,8 +19,8 @@ limitations under the License.
 package bindings
 
 import (
-	v1alpha1 "github.com/mattmoor/foo-binding/pkg/client/informers/externalversions/bindings/v1alpha1"
-	internalinterfaces "github.com/mattmoor/foo-binding/pkg/client/informers/externalversions/internalinterfaces"
+	v1alpha1 "github.com/mattmoor/bindings/pkg/client/informers/externalversions/bindings/v1alpha1"
+	internalinterfaces "github.com/mattmoor/bindings/pkg/client/informers/externalversions/internalinterfaces"
 )
 
 // Interface provides access to each of this group's versions.

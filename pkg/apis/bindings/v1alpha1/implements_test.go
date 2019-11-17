@@ -16,24 +16,21 @@ limitations under the License.
 
 package v1alpha1
 
-import (
-	"testing"
-
-	"knative.dev/pkg/apis/duck"
-	duckv1 "knative.dev/pkg/apis/duck/v1beta1"
-	duckv1beta1 "knative.dev/pkg/apis/duck/v1beta1"
-)
-
-func TestImplementsPodScalable(t *testing.T) {
-	instances := []interface{}{
-		&SinkBinding{},
-	}
-	for _, instance := range instances {
-		if err := duck.VerifyType(instance, &duckv1.Addressable{}); err != nil {
-			t.Error(err)
-		}
-		if err := duck.VerifyType(instance, &duckv1beta1.Source{}); err != nil {
-			t.Error(err)
-		}
-	}
-}
+// TODO(mattmoor): Add this test once we have landed the Binding duck.
+// import (
+// 	"testing"
+//
+// 	"knative.dev/pkg/apis/duck"
+// 	duckv1 "knative.dev/pkg/apis/duck/v1beta1"
+// )
+//
+// func TestImplementsPodScalable(t *testing.T) {
+// 	instances := []interface{}{
+// 		&GithubBinding{},
+// 	}
+// 	for _, instance := range instances {
+// 		if err := duck.VerifyType(instance, &duckv1alpha1.Binding{}); err != nil {
+// 			t.Error(err)
+// 		}
+// 	}
+// }

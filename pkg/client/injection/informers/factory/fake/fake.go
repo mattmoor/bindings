@@ -21,9 +21,9 @@ package fake
 import (
 	"context"
 
-	externalversions "github.com/mattmoor/foo-binding/pkg/client/informers/externalversions"
-	fake "github.com/mattmoor/foo-binding/pkg/client/injection/client/fake"
-	factory "github.com/mattmoor/foo-binding/pkg/client/injection/informers/factory"
+	externalversions "github.com/mattmoor/bindings/pkg/client/informers/externalversions"
+	fake "github.com/mattmoor/bindings/pkg/client/injection/client/fake"
+	factory "github.com/mattmoor/bindings/pkg/client/injection/informers/factory"
 	controller "knative.dev/pkg/controller"
 	injection "knative.dev/pkg/injection"
 )

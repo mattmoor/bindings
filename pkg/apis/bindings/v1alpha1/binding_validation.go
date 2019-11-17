@@ -23,12 +23,16 @@ import (
 )
 
 // Validate implements apis.Validatable
-func (fb *SinkBinding) Validate(ctx context.Context) *apis.FieldError {
-	return fb.Spec.Validate(ctx)
+func (fb *GithubBinding) Validate(ctx context.Context) *apis.FieldError {
+	return fb.Spec.Validate(ctx).ViaField("spec")
 }
 
 // Validate implements apis.Validatable
-func (fbs *SinkBindingSpec) Validate(ctx context.Context) *apis.FieldError {
-	return fbs.Target.Validate(ctx).ViaField("target").Also(
-		fbs.Sink.Validate(ctx).ViaField("sink"))
+func (fbs *GithubBindingSpec) Validate(ctx context.Context) *apis.FieldError {
+	err := fbs.Subject.Validate(ctx).ViaField("target")
+
+	if fbs.Secret.Name == "" {
+		err = err.Also(apis.ErrMissingField("name").ViaField("secret"))
+	}
+	return err
 }

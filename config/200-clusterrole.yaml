@@ -38,12 +38,10 @@ metadata:
   labels:
     bindings.mattmoor.dev/release: devel
     bindings.mattmoor.dev/controller: "true"
-    duck.knative.dev/source: "true"
-    eventing.knative.dev/source: "true"
 rules:
   - apiGroups: ["bindings.mattmoor.dev"]
     resources: ["*"]
-    verbs: ["get", "list", "create", "update", "delete", "deletecollection", "patch", "watch"]
+    verbs: ["*"]
 ---
 # This piece of the aggregated cluster role enables us to bind to the built-in
 # Kubernetes apps resources
@@ -60,4 +58,18 @@ rules:
     verbs: ["get", "list", "patch", "watch"]
   - apiGroups: ["batch"]
     resources: ["jobs"]
+    verbs: ["get", "list", "patch", "watch"]
+---
+# This piece of the aggregated cluster role enables us to bind to
+# Knative service resources
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: binding-system-knative-serving
+  labels:
+    bindings.mattmoor.dev/release: devel
+    bindings.mattmoor.dev/controller: "true"
+rules:
+  - apiGroups: ["serving.knative.dev"]
+    resources: ["services", "configurations"]
     verbs: ["get", "list", "patch", "watch"]

@@ -19,14 +19,14 @@ limitations under the License.
 package v1alpha1
 
 import (
-	v1alpha1 "github.com/mattmoor/foo-binding/pkg/apis/bindings/v1alpha1"
-	"github.com/mattmoor/foo-binding/pkg/client/clientset/versioned/scheme"
+	v1alpha1 "github.com/mattmoor/bindings/pkg/apis/bindings/v1alpha1"
+	"github.com/mattmoor/bindings/pkg/client/clientset/versioned/scheme"
 	rest "k8s.io/client-go/rest"
 )
 
 type BindingsV1alpha1Interface interface {
 	RESTClient() rest.Interface
-	SinkBindingsGetter
+	GithubBindingsGetter
 }
 
 // BindingsV1alpha1Client is used to interact with features provided by the bindings.mattmoor.dev group.
@@ -34,8 +34,8 @@ type BindingsV1alpha1Client struct {
 	restClient rest.Interface
 }
 
-func (c *BindingsV1alpha1Client) SinkBindings(namespace string) SinkBindingInterface {
-	return newSinkBindings(c, namespace)
+func (c *BindingsV1alpha1Client) GithubBindings(namespace string) GithubBindingInterface {
+	return newGithubBindings(c, namespace)
 }
 
 // NewForConfig creates a new BindingsV1alpha1Client for the given config.

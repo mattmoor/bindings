@@ -18,10 +18,10 @@ limitations under the License.
 
 package v1alpha1
 
-// SinkBindingListerExpansion allows custom methods to be added to
-// SinkBindingLister.
-type SinkBindingListerExpansion interface{}
+// GithubBindingListerExpansion allows custom methods to be added to
+// GithubBindingLister.
+type GithubBindingListerExpansion interface{}
 
-// SinkBindingNamespaceListerExpansion allows custom methods to be added to
-// SinkBindingNamespaceLister.
-type SinkBindingNamespaceListerExpansion interface{}
+// GithubBindingNamespaceListerExpansion allows custom methods to be added to
+// GithubBindingNamespaceLister.
+type GithubBindingNamespaceListerExpansion interface{}

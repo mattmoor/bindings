@@ -41,7 +41,7 @@ spec:
       - name: webhook
         # This is the Go import path for the binary that is containerized
         # and substituted here.
-        image: github.com/mattmoor/foo-binding/cmd/webhook
+        image: github.com/mattmoor/bindings/cmd/webhook
         resources:
           requests:
             cpu: 100m
@@ -62,4 +62,4 @@ spec:
         - name: CONFIG_OBSERVABILITY_NAME
           value: config-observability
         - name: METRICS_DOMAIN
-          value: knative.dev/samples
+          value: mattmoor.dev/bindings

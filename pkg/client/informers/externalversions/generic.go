@@ -21,7 +21,7 @@ package externalversions
 import (
 	"fmt"
 
-	v1alpha1 "github.com/mattmoor/foo-binding/pkg/apis/bindings/v1alpha1"
+	v1alpha1 "github.com/mattmoor/bindings/pkg/apis/bindings/v1alpha1"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	cache "k8s.io/client-go/tools/cache"
 )
@@ -53,8 +53,8 @@ func (f *genericInformer) Lister() cache.GenericLister {
 func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource) (GenericInformer, error) {
 	switch resource {
 	// Group=bindings.mattmoor.dev, Version=v1alpha1
-	case v1alpha1.SchemeGroupVersion.WithResource("sinkbindings"):
-		return &genericInformer{resource: resource.GroupResource(), informer: f.Bindings().V1alpha1().SinkBindings().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("githubbindings"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Bindings().V1alpha1().GithubBindings().Informer()}, nil
 
 	}
 

@@ -31,7 +31,7 @@ webhooks:
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: sinkbindings.webhook.bindings.mattmoor.dev
+  name: githubbindings.webhook.bindings.mattmoor.dev
   labels:
     bindings.mattmoor.dev/release: devel
 webhooks:
@@ -42,7 +42,7 @@ webhooks:
       name: webhook
       namespace: binding-system
   failurePolicy: Fail
-  name: sinkbindings.webhook.bindings.mattmoor.dev
+  name: githubbindings.webhook.bindings.mattmoor.dev
 ---
 apiVersion: v1
 kind: Secret

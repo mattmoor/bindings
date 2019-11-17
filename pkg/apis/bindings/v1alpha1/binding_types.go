@@ -19,6 +19,7 @@ package v1alpha1
 import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	corev1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
 	duckv1beta1 "knative.dev/pkg/apis/duck/v1beta1"
 	"knative.dev/pkg/kmeta"
@@ -28,64 +29,53 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// SinkBinding is a Knative abstraction that encapsulates the interface by which Knative
+// GithubBinding is a Knative abstraction that encapsulates the interface by which Knative
 // components express a desire to have a particular image cached.
-type SinkBinding struct {
+type GithubBinding struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	// Spec holds the desired state of the SinkBinding (from the client).
+	// Spec holds the desired state of the GithubBinding (from the client).
 	// +optional
-	Spec SinkBindingSpec `json:"spec,omitempty"`
+	Spec GithubBindingSpec `json:"spec,omitempty"`
 
-	// Status communicates the observed state of the SinkBinding (from the controller).
+	// Status communicates the observed state of the GithubBinding (from the controller).
 	// +optional
-	Status SinkBindingStatus `json:"status,omitempty"`
+	Status GithubBindingStatus `json:"status,omitempty"`
 }
 
-// Check that SinkBinding can be validated and defaulted.
-var _ apis.Validatable = (*SinkBinding)(nil)
-var _ apis.Defaultable = (*SinkBinding)(nil)
-var _ kmeta.OwnerRefable = (*SinkBinding)(nil)
+// Check that GithubBinding can be validated and defaulted.
+var _ apis.Validatable = (*GithubBinding)(nil)
+var _ apis.Defaultable = (*GithubBinding)(nil)
+var _ kmeta.OwnerRefable = (*GithubBinding)(nil)
 
-// SinkBindingSpec holds the desired state of the SinkBinding (from the client).
-type SinkBindingSpec struct {
-	// Target holds a reference to the "pod speccable" Kubernetes resource which will
-	// have the reference to our sink injected into it.
-	Target tracker.Reference `json:"target"`
+// GithubBindingSpec holds the desired state of the GithubBinding (from the client).
+type GithubBindingSpec struct {
+	// Subject holds a reference to the "pod speccable" Kubernetes resource which will
+	// be bound with Github secret data.
+	Subject tracker.Reference `json:"target"`
 
-	// TODO(mattmoor): Add a comment
-	Sink duckv1beta1.Destination `json:"sink"`
-
-	// CloudEventOverrides defines overrides to control the output format and
-	// modifications of the event sent to the sink.
-	// +optional
-	CloudEventOverrides *duckv1beta1.CloudEventOverrides `json:"ceOverrides,omitempty"`
+	// Secret holds a reference to a secret containing the Github auth data.
+	Secret corev1.LocalObjectReference `json:"secret"`
 }
 
 const (
-	// SinkBindingConditionReady is set when the revision is starting to materialize
-	// runtime resources, and becomes true when those resources are ready.
-	SinkBindingConditionReady = apis.ConditionReady
+	// GithubBindingConditionReady is set when the binding has been applied to the subjects.
+	GithubBindingConditionReady = apis.ConditionReady
 )
 
-// SinkBindingStatus communicates the observed state of the SinkBinding (from the controller).
-type SinkBindingStatus struct {
+// GithubBindingStatus communicates the observed state of the GithubBinding (from the controller).
+type GithubBindingStatus struct {
 	duckv1beta1.Status `json:",inline"`
-
-	// SinkURI is the current active sink URI that has been configured for the
-	// Source.
-	// +optional
-	SinkURI *apis.URL `json:"sinkUri,omitempty"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// SinkBindingList is a list of SinkBinding resources
-type SinkBindingList struct {
+// GithubBindingList is a list of GithubBinding resources
+type GithubBindingList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata"`
 
-	Items []SinkBinding `json:"items"`
+	Items []GithubBinding `json:"items"`
 }

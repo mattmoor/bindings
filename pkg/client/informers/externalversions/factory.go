@@ -23,9 +23,9 @@ import (
 	sync "sync"
 	time "time"
 
-	versioned "github.com/mattmoor/foo-binding/pkg/client/clientset/versioned"
-	bindings "github.com/mattmoor/foo-binding/pkg/client/informers/externalversions/bindings"
-	internalinterfaces "github.com/mattmoor/foo-binding/pkg/client/informers/externalversions/internalinterfaces"
+	versioned "github.com/mattmoor/bindings/pkg/client/clientset/versioned"
+	bindings "github.com/mattmoor/bindings/pkg/client/informers/externalversions/bindings"
+	internalinterfaces "github.com/mattmoor/bindings/pkg/client/informers/externalversions/internalinterfaces"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
 	schema "k8s.io/apimachinery/pkg/runtime/schema"
