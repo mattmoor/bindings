@@ -19,3 +19,4 @@ metadata:
   labels:
     istio-injection: enabled
     bindings.mattmoor.dev/release: devel
+    bindings.mattmoor.dev/exclude: "true"

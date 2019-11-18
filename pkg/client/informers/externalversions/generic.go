@@ -57,6 +57,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Bindings().V1alpha1().GithubBindings().Informer()}, nil
 	case v1alpha1.SchemeGroupVersion.WithResource("slackbindings"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Bindings().V1alpha1().SlackBindings().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("twitterbindings"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Bindings().V1alpha1().TwitterBindings().Informer()}, nil
 
 	}
 

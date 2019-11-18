@@ -82,6 +82,14 @@
   version = "v1.0.0"
 
 [[projects]]
+  digest = "1:cdee563173093e5ae7ab2a19c298e0904129719e1919a3c532b7bb0c3398b818"
+  name = "github.com/cenkalti/backoff"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "4b4cebaf850ec58f1bb1fec5bdebdf8501c2bc3f"
+  version = "v3.0.0"
+
+[[projects]]
   digest = "1:e7d26760c4e7d67a443b082153c4b473ad0b8f7388302a2f788b1360f751abb8"
   name = "github.com/census-instrumentation/opencensus-proto"
   packages = [
@@ -100,6 +108,30 @@
   pruneopts = "NUT"
   revision = "8991bc29aa16c548c550c7ff78260e27b9ab7c73"
   version = "v1.1.1"
+
+[[projects]]
+  branch = "master"
+  digest = "1:ccbd5b4079e67036e339297ce0beb95a3d57575e4ca065142fc1859a9b2859a8"
+  name = "github.com/dghubble/go-twitter"
+  packages = ["twitter"]
+  pruneopts = "NUT"
+  revision = "39e5462e111ffe165c62a88e2c25e1c1d1085bdb"
+
+[[projects]]
+  digest = "1:46c8cea5dd259094c4bdf9b67bd509da71a0e5bff43f9393c2327894313ec8b4"
+  name = "github.com/dghubble/oauth1"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "19d7291ba290f420ccea50e076322aca95f27fcd"
+  version = "v0.6.0"
+
+[[projects]]
+  digest = "1:94e2d42aa48e73c659998e481dcae92b0a8aadab9ec8c1e705d6769883fee82b"
+  name = "github.com/dghubble/sling"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "5a2946623f885d0cfcd7085b039baec12ad53fdd"
+  version = "v1.3.0"
 
 [[projects]]
   digest = "1:db115eee0ae265dab922fecbb7966c3fcdc4eae3c2e9caae302fdcba3ba422c7"
@@ -510,10 +542,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:17ee74a4d9b6078611784b873cdbfe91892d2c73052c430724e66fcc015b6c7b"
+  digest = "1:f4dfe8a6790f7189dca4a79505455d661b878a568b7b25f8883af7ce0abf3326"
   name = "golang.org/x/oauth2"
   packages = [
     ".",
+    "clientcredentials",
     "google",
     "internal",
     "jws",
@@ -1093,12 +1126,15 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/dghubble/go-twitter/twitter",
+    "github.com/dghubble/oauth1",
     "github.com/google/go-github/github",
     "github.com/markbates/inflect",
     "github.com/nlopes/slack",
     "github.com/pkg/errors",
     "go.uber.org/zap",
     "golang.org/x/oauth2",
+    "golang.org/x/oauth2/clientcredentials",
     "golang.org/x/sync/errgroup",
     "k8s.io/api/admission/v1beta1",
     "k8s.io/api/admissionregistration/v1beta1",
@@ -1108,6 +1144,7 @@
     "k8s.io/apimachinery/pkg/api/equality",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
+    "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",

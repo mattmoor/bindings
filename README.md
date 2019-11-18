@@ -97,3 +97,55 @@ client, err := slack.New(ctx)
 ...
 
 ```
+
+
+## `TwitterBinding`
+
+The `TwitterBinding` is intended to facilitate the consumption of the Twitter API.
+It has the following form:
+
+```yaml
+apiVersion: bindings.mattmoor.dev/v1alpha1
+kind: TwitterBinding
+metadata:
+  name: foo-binding
+spec:
+  subject:
+    apiVersion: apps/v1
+    kind: Deployment
+    # Either name or selector may be specified.
+    selector:
+      matchLabels:
+        foo: bar
+
+  secret:
+    name: twitter-secret
+```
+
+The referenced secret must have the keys: `consumerKey`, `consumerSecretKey`,
+which are the Twitter "Application" credentials.  It may also optionally
+have the keys: `accessToken`, `accessSecret` in order to access the Twitter
+API using "User" credentials.  These (and other) keys are made available
+under `/var/bindings/twitter/` (this is the runtime contract of the
+`TwitterBinding`).
+
+Depending on whether you want "Application" or "User" functionality (the latter
+requires additional secret keys), we provide a helper for each to instantiate
+a client compatible with `github.com/dghubble/go-twitter`:
+
+```go
+
+import "github.com/mattmoor/bindings/pkg/twitter"
+
+
+// Instantiate a Client that authenticates as an Application from
+// the TwitterBinding.
+client, err := twitter.NewAppClient(ctx)
+...
+
+// Instantiate a Client that authenticates as a User from
+// the TwitterBinding.
+client, err := twitter.NewUserClient(ctx)
+...
+
+```

@@ -24,4 +24,17 @@ spec:
   secret:
     name: slack-secret
 ---
+apiVersion: bindings.mattmoor.dev/v1alpha1
+kind: TwitterBinding
+metadata:
+  name: bind-deploy
+spec:
+  subject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: debug
+
+  secret:
+    name: twitter-secret
+---
 # kubectl run debug --image=gcr.io/mattmoor-knative/curl sleep 3600

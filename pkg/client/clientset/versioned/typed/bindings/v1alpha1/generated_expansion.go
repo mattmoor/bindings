@@ -21,3 +21,5 @@ package v1alpha1
 type GithubBindingExpansion interface{}
 
 type SlackBindingExpansion interface{}
+
+type TwitterBindingExpansion interface{}

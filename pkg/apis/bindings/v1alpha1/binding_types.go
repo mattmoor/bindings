@@ -78,6 +78,32 @@ var (
 	_ kmeta.OwnerRefable = (*SlackBinding)(nil)
 )
 
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// TwitterBinding is a Knative-style Binding for injecting Twitter credentials
+// compatible with ./pkg/slack into any Kubernetes resource with a Pod Spec.
+type TwitterBinding struct {
+	metav1.TypeMeta `json:",inline"`
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Spec holds the desired state of the TwitterBinding (from the client).
+	// +optional
+	Spec TwitterBindingSpec `json:"spec,omitempty"`
+
+	// Status communicates the observed state of the TwitterBinding (from the controller).
+	// +optional
+	Status TwitterBindingStatus `json:"status,omitempty"`
+}
+
+var (
+	// Check that TwitterBinding can be validated and defaulted.
+	_ apis.Validatable   = (*TwitterBinding)(nil)
+	_ apis.Defaultable   = (*TwitterBinding)(nil)
+	_ kmeta.OwnerRefable = (*TwitterBinding)(nil)
+)
+
 // GithubBindingSpec holds the desired state of the GithubBinding (from the client).
 type GithubBindingSpec struct {
 	// Subject holds a reference to the "pod speccable" Kubernetes resource which will
@@ -108,6 +134,21 @@ type SlackBindingStatus struct {
 	duckv1beta1.Status `json:",inline"`
 }
 
+// TwitterBindingSpec holds the desired state of the TwitterBinding (from the client).
+type TwitterBindingSpec struct {
+	// Subject holds a reference to the "pod speccable" Kubernetes resource which will
+	// be bound with Twitter secret data.
+	Subject tracker.Reference `json:"subject"`
+
+	// Secret holds a reference to a secret containing the Twitter auth data.
+	Secret corev1.LocalObjectReference `json:"secret"`
+}
+
+// TwitterBindingStatus communicates the observed state of the TwitterBinding (from the controller).
+type TwitterBindingStatus struct {
+	duckv1beta1.Status `json:",inline"`
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // GithubBindingList is a list of GithubBinding resources
@@ -126,4 +167,14 @@ type SlackBindingList struct {
 	metav1.ListMeta `json:"metadata"`
 
 	Items []SlackBinding `json:"items"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// TwitterBindingList is a list of TwitterBinding resources
+type TwitterBindingList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []TwitterBinding `json:"items"`
 }

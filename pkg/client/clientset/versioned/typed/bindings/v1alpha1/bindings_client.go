@@ -28,6 +28,7 @@ type BindingsV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	GithubBindingsGetter
 	SlackBindingsGetter
+	TwitterBindingsGetter
 }
 
 // BindingsV1alpha1Client is used to interact with features provided by the bindings.mattmoor.dev group.
@@ -41,6 +42,10 @@ func (c *BindingsV1alpha1Client) GithubBindings(namespace string) GithubBindingI
 
 func (c *BindingsV1alpha1Client) SlackBindings(namespace string) SlackBindingInterface {
 	return newSlackBindings(c, namespace)
+}
+
+func (c *BindingsV1alpha1Client) TwitterBindings(namespace string) TwitterBindingInterface {
+	return newTwitterBindings(c, namespace)
 }
 
 // NewForConfig creates a new BindingsV1alpha1Client for the given config.

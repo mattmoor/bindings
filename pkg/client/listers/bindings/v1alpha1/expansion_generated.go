@@ -33,3 +33,11 @@ type SlackBindingListerExpansion interface{}
 // SlackBindingNamespaceListerExpansion allows custom methods to be added to
 // SlackBindingNamespaceLister.
 type SlackBindingNamespaceListerExpansion interface{}
+
+// TwitterBindingListerExpansion allows custom methods to be added to
+// TwitterBindingLister.
+type TwitterBindingListerExpansion interface{}
+
+// TwitterBindingNamespaceListerExpansion allows custom methods to be added to
+// TwitterBindingNamespaceLister.
+type TwitterBindingNamespaceListerExpansion interface{}

@@ -33,6 +33,7 @@ import (
 	"github.com/mattmoor/bindings/pkg/apis/bindings/v1alpha1"
 	"github.com/mattmoor/bindings/pkg/reconciler/githubbinding"
 	"github.com/mattmoor/bindings/pkg/reconciler/slackbinding"
+	"github.com/mattmoor/bindings/pkg/reconciler/twitterbinding"
 	"github.com/mattmoor/bindings/pkg/webhook/psbinding"
 )
 
@@ -46,8 +47,9 @@ func NewResourceAdmissionController(ctx context.Context, cmw configmap.Watcher) 
 
 		// The resources to validate and default.
 		map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
-			v1alpha1.SchemeGroupVersion.WithKind("GithubBinding"): &v1alpha1.GithubBinding{},
-			v1alpha1.SchemeGroupVersion.WithKind("SlackBinding"):  &v1alpha1.SlackBinding{},
+			v1alpha1.SchemeGroupVersion.WithKind("GithubBinding"):  &v1alpha1.GithubBinding{},
+			v1alpha1.SchemeGroupVersion.WithKind("SlackBinding"):   &v1alpha1.SlackBinding{},
+			v1alpha1.SchemeGroupVersion.WithKind("TwitterBinding"): &v1alpha1.TwitterBinding{},
 		},
 
 		// A function that infuses the context passed to Validate/SetDefaults with custom metadata.
@@ -102,5 +104,6 @@ func main() {
 		// For each binding we have a controller and a binding webhook.
 		githubbinding.NewController, NewBindingWebhook("githubbindings", githubbinding.ListAll, nop),
 		slackbinding.NewController, NewBindingWebhook("slackbindings", slackbinding.ListAll, nop),
+		twitterbinding.NewController, NewBindingWebhook("twitterbindings", twitterbinding.ListAll, nop),
 	)
 }

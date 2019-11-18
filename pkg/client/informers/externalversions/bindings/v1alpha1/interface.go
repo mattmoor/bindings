@@ -28,6 +28,8 @@ type Interface interface {
 	GithubBindings() GithubBindingInformer
 	// SlackBindings returns a SlackBindingInformer.
 	SlackBindings() SlackBindingInformer
+	// TwitterBindings returns a TwitterBindingInformer.
+	TwitterBindings() TwitterBindingInformer
 }
 
 type version struct {
@@ -49,4 +51,9 @@ func (v *version) GithubBindings() GithubBindingInformer {
 // SlackBindings returns a SlackBindingInformer.
 func (v *version) SlackBindings() SlackBindingInformer {
 	return &slackBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// TwitterBindings returns a TwitterBindingInformer.
+func (v *version) TwitterBindings() TwitterBindingInformer {
+	return &twitterBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

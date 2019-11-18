@@ -36,6 +36,10 @@ func (c *FakeBindingsV1alpha1) SlackBindings(namespace string) v1alpha1.SlackBin
 	return &FakeSlackBindings{c, namespace}
 }
 
+func (c *FakeBindingsV1alpha1) TwitterBindings(namespace string) v1alpha1.TwitterBindingInterface {
+	return &FakeTwitterBindings{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeBindingsV1alpha1) RESTClient() rest.Interface {
