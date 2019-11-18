@@ -36,3 +36,18 @@ func (fbs *GithubBindingSpec) Validate(ctx context.Context) *apis.FieldError {
 	}
 	return err
 }
+
+// Validate implements apis.Validatable
+func (fb *SlackBinding) Validate(ctx context.Context) *apis.FieldError {
+	return fb.Spec.Validate(ctx).ViaField("spec")
+}
+
+// Validate implements apis.Validatable
+func (fbs *SlackBindingSpec) Validate(ctx context.Context) *apis.FieldError {
+	err := fbs.Subject.Validate(ctx).ViaField("subject")
+
+	if fbs.Secret.Name == "" {
+		err = err.Also(apis.ErrMissingField("name").ViaField("secret"))
+	}
+	return err
+}

@@ -25,3 +25,11 @@ type GithubBindingListerExpansion interface{}
 // GithubBindingNamespaceListerExpansion allows custom methods to be added to
 // GithubBindingNamespaceLister.
 type GithubBindingNamespaceListerExpansion interface{}
+
+// SlackBindingListerExpansion allows custom methods to be added to
+// SlackBindingLister.
+type SlackBindingListerExpansion interface{}
+
+// SlackBindingNamespaceListerExpansion allows custom methods to be added to
+// SlackBindingNamespaceLister.
+type SlackBindingNamespaceListerExpansion interface{}

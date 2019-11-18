@@ -17,38 +17,59 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"context"
+
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"knative.dev/pkg/apis"
+	"knative.dev/pkg/tracker"
 
 	"github.com/mattmoor/bindings/pkg/github"
+	"github.com/mattmoor/bindings/pkg/slack"
 )
 
-var condSet = apis.NewLivingConditionSet()
+const (
+	// GithubBindingConditionReady is set when the binding has been applied to the subjects.
+	GithubBindingConditionReady = apis.ConditionReady
+)
+
+var ghCondSet = apis.NewLivingConditionSet()
 
 // GetGroupVersionKind implements kmeta.OwnerRefable
 func (fb *GithubBinding) GetGroupVersionKind() schema.GroupVersionKind {
 	return SchemeGroupVersion.WithKind("GithubBinding")
 }
 
+// GetSubject implements Bindable
+func (fb *GithubBinding) GetSubject() tracker.Reference {
+	return fb.Spec.Subject
+}
+
 func (fbs *GithubBindingStatus) InitializeConditions() {
-	condSet.Manage(fbs).InitializeConditions()
+	ghCondSet.Manage(fbs).InitializeConditions()
+}
+
+func (fb *GithubBinding) MarkBindingUnavailable(reason, message string) {
+	fb.Status.MarkBindingUnavailable(reason, message)
+}
+
+func (fb *GithubBinding) MarkBindingAvailable() {
+	fb.Status.MarkBindingAvailable()
 }
 
 func (fbs *GithubBindingStatus) MarkBindingUnavailable(reason, message string) {
-	condSet.Manage(fbs).MarkFalse(
-		GithubBindingConditionReady,
-		reason, message)
+	ghCondSet.Manage(fbs).MarkFalse(
+		GithubBindingConditionReady, reason, message)
 }
 
 func (fbs *GithubBindingStatus) MarkBindingAvailable() {
-	condSet.Manage(fbs).MarkTrue(GithubBindingConditionReady)
+	ghCondSet.Manage(fbs).MarkTrue(GithubBindingConditionReady)
 }
 
-func (fb *GithubBinding) Do(ps *PodSpeccable) {
+func (fb *GithubBinding) Do(ctx context.Context, ps *PodSpeccable) {
 
 	// First undo so that we can just unconditionally append below.
-	fb.Undo(ps)
+	fb.Undo(ctx, ps)
 
 	// Make sure the PodSpec has a Volume like this:
 	volume := corev1.Volume{
@@ -76,13 +97,13 @@ func (fb *GithubBinding) Do(ps *PodSpeccable) {
 	}
 }
 
-func (fb *GithubBinding) Undo(ps *PodSpeccable) {
+func (fb *GithubBinding) Undo(ctx context.Context, ps *PodSpeccable) {
 	spec := ps.Spec.Template.Spec
 
 	// Make sure the PodSpec does NOT have the github volume.
 	for i, v := range spec.Volumes {
 		if v.Name == github.VolumeName {
-			spec.Volumes = append(spec.Volumes[:i], spec.Volumes[i+1:]...)
+			ps.Spec.Template.Spec.Volumes = append(spec.Volumes[:i], spec.Volumes[i+1:]...)
 			break
 		}
 	}
@@ -99,6 +120,105 @@ func (fb *GithubBinding) Undo(ps *PodSpeccable) {
 	for i, c := range spec.Containers {
 		for j, ev := range c.VolumeMounts {
 			if ev.Name == github.VolumeName {
+				spec.Containers[i].VolumeMounts = append(spec.Containers[i].VolumeMounts[:j], spec.Containers[i].VolumeMounts[j+1:]...)
+				break
+			}
+		}
+	}
+}
+
+const (
+	// SlackBindingConditionReady is set when the binding has been applied to the subjects.
+	SlackBindingConditionReady = apis.ConditionReady
+)
+
+var slackCondSet = apis.NewLivingConditionSet()
+
+// GetGroupVersionKind implements kmeta.OwnerRefable
+func (fb *SlackBinding) GetGroupVersionKind() schema.GroupVersionKind {
+	return SchemeGroupVersion.WithKind("SlackBinding")
+}
+
+// GetSubject implements Bindable
+func (fb *SlackBinding) GetSubject() tracker.Reference {
+	return fb.Spec.Subject
+}
+
+func (fbs *SlackBindingStatus) InitializeConditions() {
+	slackCondSet.Manage(fbs).InitializeConditions()
+}
+
+func (fb *SlackBinding) MarkBindingUnavailable(reason, message string) {
+	fb.Status.MarkBindingUnavailable(reason, message)
+}
+
+func (fb *SlackBinding) MarkBindingAvailable() {
+	fb.Status.MarkBindingAvailable()
+}
+
+func (fbs *SlackBindingStatus) MarkBindingUnavailable(reason, message string) {
+	slackCondSet.Manage(fbs).MarkFalse(
+		SlackBindingConditionReady, reason, message)
+}
+
+func (fbs *SlackBindingStatus) MarkBindingAvailable() {
+	slackCondSet.Manage(fbs).MarkTrue(SlackBindingConditionReady)
+}
+
+func (fb *SlackBinding) Do(ctx context.Context, ps *PodSpeccable) {
+
+	// First undo so that we can just unconditionally append below.
+	fb.Undo(ctx, ps)
+
+	// Make sure the PodSpec has a Volume like this:
+	volume := corev1.Volume{
+		Name: slack.VolumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: fb.Spec.Secret.Name,
+			},
+		},
+	}
+	ps.Spec.Template.Spec.Volumes = append(ps.Spec.Template.Spec.Volumes, volume)
+
+	// Make sure that each [init]container in the PodSpec has a VolumeMount like this:
+	volumeMount := corev1.VolumeMount{
+		Name:      slack.VolumeName,
+		ReadOnly:  true,
+		MountPath: slack.MountPath,
+	}
+	spec := ps.Spec.Template.Spec
+	for i := range spec.InitContainers {
+		spec.InitContainers[i].VolumeMounts = append(spec.InitContainers[i].VolumeMounts, volumeMount)
+	}
+	for i := range spec.Containers {
+		spec.Containers[i].VolumeMounts = append(spec.Containers[i].VolumeMounts, volumeMount)
+	}
+}
+
+func (fb *SlackBinding) Undo(ctx context.Context, ps *PodSpeccable) {
+	spec := ps.Spec.Template.Spec
+
+	// Make sure the PodSpec does NOT have the slack volume.
+	for i, v := range spec.Volumes {
+		if v.Name == slack.VolumeName {
+			ps.Spec.Template.Spec.Volumes = append(spec.Volumes[:i], spec.Volumes[i+1:]...)
+			break
+		}
+	}
+
+	// Make sure that none of the [init]containers have the slack volume mount
+	for i, c := range spec.InitContainers {
+		for j, ev := range c.VolumeMounts {
+			if ev.Name == slack.VolumeName {
+				spec.InitContainers[i].VolumeMounts = append(spec.InitContainers[i].VolumeMounts[:j], spec.InitContainers[i].VolumeMounts[j+1:]...)
+				break
+			}
+		}
+	}
+	for i, c := range spec.Containers {
+		for j, ev := range c.VolumeMounts {
+			if ev.Name == slack.VolumeName {
 				spec.Containers[i].VolumeMounts = append(spec.Containers[i].VolumeMounts[:j], spec.Containers[i].VolumeMounts[j+1:]...)
 				break
 			}

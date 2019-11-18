@@ -27,3 +27,11 @@ func (fb *GithubBinding) SetDefaults(ctx context.Context) {
 		fb.Spec.Subject.Namespace = fb.Namespace
 	}
 }
+
+// SetDefaults implements apis.Defaultable
+func (fb *SlackBinding) SetDefaults(ctx context.Context) {
+	if fb.Spec.Subject.Namespace == "" {
+		// Default the subject's namespace to our namespace.
+		fb.Spec.Subject.Namespace = fb.Namespace
+	}
+}

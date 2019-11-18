@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package githubbinding
+package psbinding
 
 import (
 	"bytes"
@@ -27,7 +27,6 @@ import (
 
 	"github.com/markbates/inflect"
 	"github.com/mattmoor/bindings/pkg/apis/bindings/v1alpha1"
-	listers "github.com/mattmoor/bindings/pkg/client/listers/bindings/v1alpha1"
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -57,11 +56,13 @@ type reconciler struct {
 	client       kubernetes.Interface
 	mwhlister    admissionlisters.MutatingWebhookConfigurationLister
 	secretlister corelisters.SecretLister
-	fblister     listers.GithubBindingLister
+	listall      ListAll
+
+	WithContext BindableContext
 
 	// lock protects access to exact and inexact
 	lock    sync.RWMutex
-	exact   map[string]*v1alpha1.GithubBinding
+	exact   map[string]Bindable
 	inexact map[string][]pair
 
 	secretName string
@@ -69,7 +70,7 @@ type reconciler struct {
 
 type pair struct {
 	selector labels.Selector
-	sb       *v1alpha1.GithubBinding
+	sb       Bindable
 }
 
 var _ controller.Reconciler = (*reconciler)(nil)
@@ -115,8 +116,8 @@ func (ac *reconciler) Admit(ctx context.Context, request *admissionv1beta1.Admis
 		return webhook.MakeErrorStatus("unable to decode object: %v", err)
 	}
 
-	// Look up the GithubBinding for this resource.
-	fb := func() *v1alpha1.GithubBinding {
+	// Look up the Bindable for this resource.
+	fb := func() Bindable {
 		ac.lock.RLock()
 		defer ac.lock.RUnlock()
 
@@ -135,7 +136,7 @@ func (ac *reconciler) Admit(ctx context.Context, request *admissionv1beta1.Admis
 		}
 
 		// Iterate over the the inexact matches for this GVK + namespace and return the first
-		// GithubBinding that matches our selector.
+		// Bindable that matches our selector.
 		ls := labels.Set(orig.Labels)
 		for _, p := range pl {
 			if p.selector.Matches(ls) {
@@ -151,13 +152,14 @@ func (ac *reconciler) Admit(ctx context.Context, request *admissionv1beta1.Admis
 		return &admissionv1beta1.AdmissionResponse{Allowed: true}
 	}
 
-	// Mutate a copy according to the deletion state of the GithubBinding.
+	ctx = ac.WithContext(ctx, fb)
+
+	// Mutate a copy according to the deletion state of the Bindable.
 	delta := orig.DeepCopy()
 	if fb.GetDeletionTimestamp() != nil {
-		fb.Undo(delta)
+		fb.Undo(ctx, delta)
 	} else {
-		fb.Do(delta)
-		logger.Infof("AFTER DO %+v", delta.Spec.Template.Spec.Volumes)
+		fb.Do(ctx, delta)
 	}
 
 	// Synthesize a patch from the changes and return it in our AdmissionResponse
@@ -185,9 +187,7 @@ func (ac *reconciler) Admit(ctx context.Context, request *admissionv1beta1.Admis
 func (ac *reconciler) reconcileMutatingWebhook(ctx context.Context, caCert []byte) error {
 	logger := logging.FromContext(ctx)
 
-	var rules []admissionregistrationv1beta1.RuleWithOperations
-
-	fbs, err := ac.fblister.List(labels.Everything())
+	fbs, err := ac.listall()
 	if err != nil {
 		return err
 	}
@@ -200,11 +200,11 @@ func (ac *reconciler) reconcileMutatingWebhook(ctx context.Context, caCert []byt
 		batchv1.SchemeGroupVersion.WithKind("Job").GroupKind():        sets.NewString("v1"),
 	}
 
-	exact := make(map[string]*v1alpha1.GithubBinding, len(fbs))
+	exact := make(map[string]Bindable, len(fbs))
 	inexact := make(map[string][]pair, len(fbs))
 
 	for _, fb := range fbs {
-		ref := fb.Spec.Subject
+		ref := fb.GetSubject()
 		gv, err := schema.ParseGroupVersion(ref.APIVersion)
 		if err != nil {
 			return err
@@ -223,7 +223,7 @@ func (ac *reconciler) reconcileMutatingWebhook(ctx context.Context, caCert []byt
 		if ref.Name != "" {
 			exact[fmt.Sprintf("%s/%s/%s/%s", gk.Group, gk.Kind, ref.Namespace, ref.Name)] = fb
 		} else {
-			selector, err := metav1.LabelSelectorAsSelector(fb.Spec.Subject.Selector)
+			selector, err := metav1.LabelSelectorAsSelector(ref.Selector)
 			if err != nil {
 				return err
 			}
@@ -246,6 +246,7 @@ func (ac *reconciler) reconcileMutatingWebhook(ctx context.Context, caCert []byt
 		ac.inexact = inexact
 	}()
 
+	var rules []admissionregistrationv1beta1.RuleWithOperations
 	for gk, versions := range gks {
 		plural := strings.ToLower(inflect.Pluralize(gk.Kind))
 

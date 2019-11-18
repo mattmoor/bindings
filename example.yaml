@@ -11,4 +11,17 @@ spec:
   secret:
     name: github-hook-secret
 ---
+apiVersion: bindings.mattmoor.dev/v1alpha1
+kind: SlackBinding
+metadata:
+  name: bind-deploy
+spec:
+  subject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: debug
+
+  secret:
+    name: slack-secret
+---
 # kubectl run debug --image=gcr.io/mattmoor-knative/curl sleep 3600

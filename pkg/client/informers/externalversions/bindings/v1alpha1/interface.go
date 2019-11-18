@@ -26,6 +26,8 @@ import (
 type Interface interface {
 	// GithubBindings returns a GithubBindingInformer.
 	GithubBindings() GithubBindingInformer
+	// SlackBindings returns a SlackBindingInformer.
+	SlackBindings() SlackBindingInformer
 }
 
 type version struct {
@@ -42,4 +44,9 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // GithubBindings returns a GithubBindingInformer.
 func (v *version) GithubBindings() GithubBindingInformer {
 	return &githubBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// SlackBindings returns a SlackBindingInformer.
+func (v *version) SlackBindings() SlackBindingInformer {
+	return &slackBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

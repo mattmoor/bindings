@@ -14,13 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package githubbinding
+package psbinding
 
 import (
 	"context"
 
 	// Injection stuff
-	fbinformer "github.com/mattmoor/bindings/pkg/client/injection/informers/bindings/v1alpha1/githubbinding"
+	"github.com/mattmoor/bindings/pkg/apis/bindings/v1alpha1"
 	kubeclient "knative.dev/pkg/client/injection/kube/client"
 	mwhinformer "knative.dev/pkg/client/injection/kube/informers/admissionregistration/v1beta1/mutatingwebhookconfiguration"
 	secretinformer "knative.dev/pkg/client/injection/kube/informers/core/v1/secret"
@@ -28,21 +28,44 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
 	"knative.dev/pkg/controller"
+	"knative.dev/pkg/kmeta"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/system"
+	"knative.dev/pkg/tracker"
 	"knative.dev/pkg/webhook"
 )
+
+// Bindable is implemented by Bindings whose subjects as PodSpeccable.
+type Bindable interface {
+	kmeta.Accessor
+	kmeta.OwnerRefable
+
+	GetSubject() tracker.Reference
+
+	MarkBindingAvailable()
+	MarkBindingUnavailable(reason string, message string)
+
+	Do(context.Context, *v1alpha1.PodSpeccable)
+	Undo(context.Context, *v1alpha1.PodSpeccable)
+}
+
+type ListAll func() ([]Bindable, error)
+
+type GetListAll func(context.Context, cache.ResourceEventHandler) ListAll
+
+type BindableContext func(context.Context, Bindable) context.Context
 
 // NewAdmissionController constructs a reconciler
 func NewAdmissionController(
 	ctx context.Context,
 	name, path string,
+	la GetListAll,
+	WithContext BindableContext,
 ) *controller.Impl {
 
 	client := kubeclient.Get(ctx)
 	mwhInformer := mwhinformer.Get(ctx)
 	secretInformer := secretinformer.Get(ctx)
-	fbInformer := fbinformer.Get(ctx)
 	options := webhook.GetOptions(ctx)
 
 	wh := &reconciler{
@@ -51,10 +74,11 @@ func NewAdmissionController(
 
 		secretName: options.SecretName,
 
+		WithContext: WithContext,
+
 		client:       client,
 		mwhlister:    mwhInformer.Lister(),
 		secretlister: secretInformer.Lister(),
-		fblister:     fbInformer.Lister(),
 	}
 
 	logger := logging.FromContext(ctx)
@@ -76,8 +100,9 @@ func NewAdmissionController(
 		Handler:    handler,
 	})
 
-	// Whenever a GithubBinding changes our webhook programming might change.
-	fbInformer.Informer().AddEventHandler(handler)
+	// Give the reconciler a way to list all of the Bindable resources,
+	// and configure the controller to handle changes to those resources.
+	wh.listall = la(ctx, handler)
 
 	return c
 }

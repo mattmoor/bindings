@@ -32,6 +32,10 @@ func (c *FakeBindingsV1alpha1) GithubBindings(namespace string) v1alpha1.GithubB
 	return &FakeGithubBindings{c, namespace}
 }
 
+func (c *FakeBindingsV1alpha1) SlackBindings(namespace string) v1alpha1.SlackBindingInterface {
+	return &FakeSlackBindings{c, namespace}
+}
+
 // RESTClient returns a RESTClient that is used to communicate
 // with API server by this client implementation.
 func (c *FakeBindingsV1alpha1) RESTClient() rest.Interface {

@@ -55,6 +55,8 @@ func (f *sharedInformerFactory) ForResource(resource schema.GroupVersionResource
 	// Group=bindings.mattmoor.dev, Version=v1alpha1
 	case v1alpha1.SchemeGroupVersion.WithResource("githubbindings"):
 		return &genericInformer{resource: resource.GroupResource(), informer: f.Bindings().V1alpha1().GithubBindings().Informer()}, nil
+	case v1alpha1.SchemeGroupVersion.WithResource("slackbindings"):
+		return &genericInformer{resource: resource.GroupResource(), informer: f.Bindings().V1alpha1().SlackBindings().Informer()}, nil
 
 	}
 

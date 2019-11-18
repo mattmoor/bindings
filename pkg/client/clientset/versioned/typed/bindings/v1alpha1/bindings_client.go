@@ -27,6 +27,7 @@ import (
 type BindingsV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	GithubBindingsGetter
+	SlackBindingsGetter
 }
 
 // BindingsV1alpha1Client is used to interact with features provided by the bindings.mattmoor.dev group.
@@ -36,6 +37,10 @@ type BindingsV1alpha1Client struct {
 
 func (c *BindingsV1alpha1Client) GithubBindings(namespace string) GithubBindingInterface {
 	return newGithubBindings(c, namespace)
+}
+
+func (c *BindingsV1alpha1Client) SlackBindings(namespace string) SlackBindingInterface {
+	return newSlackBindings(c, namespace)
 }
 
 // NewForConfig creates a new BindingsV1alpha1Client for the given config.

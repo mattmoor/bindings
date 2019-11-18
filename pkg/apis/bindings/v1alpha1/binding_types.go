@@ -29,8 +29,8 @@ import (
 // +genclient
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
-// GithubBinding is a Knative abstraction that encapsulates the interface by which Knative
-// components express a desire to have a particular image cached.
+// GithubBinding is a Knative-style Binding for injecting Github credentials
+// compatible with ./pkg/github into any Kubernetes resource with a Pod Spec.
 type GithubBinding struct {
 	metav1.TypeMeta `json:",inline"`
 	// +optional
@@ -45,10 +45,38 @@ type GithubBinding struct {
 	Status GithubBindingStatus `json:"status,omitempty"`
 }
 
-// Check that GithubBinding can be validated and defaulted.
-var _ apis.Validatable = (*GithubBinding)(nil)
-var _ apis.Defaultable = (*GithubBinding)(nil)
-var _ kmeta.OwnerRefable = (*GithubBinding)(nil)
+var (
+	// Check that GithubBinding can be validated and defaulted.
+	_ apis.Validatable   = (*GithubBinding)(nil)
+	_ apis.Defaultable   = (*GithubBinding)(nil)
+	_ kmeta.OwnerRefable = (*GithubBinding)(nil)
+)
+
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// SlackBinding is a Knative-style Binding for injecting Slack credentials
+// compatible with ./pkg/slack into any Kubernetes resource with a Pod Spec.
+type SlackBinding struct {
+	metav1.TypeMeta `json:",inline"`
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Spec holds the desired state of the SlackBinding (from the client).
+	// +optional
+	Spec SlackBindingSpec `json:"spec,omitempty"`
+
+	// Status communicates the observed state of the SlackBinding (from the controller).
+	// +optional
+	Status SlackBindingStatus `json:"status,omitempty"`
+}
+
+var (
+	// Check that SlackBinding can be validated and defaulted.
+	_ apis.Validatable   = (*SlackBinding)(nil)
+	_ apis.Defaultable   = (*SlackBinding)(nil)
+	_ kmeta.OwnerRefable = (*SlackBinding)(nil)
+)
 
 // GithubBindingSpec holds the desired state of the GithubBinding (from the client).
 type GithubBindingSpec struct {
@@ -60,13 +88,23 @@ type GithubBindingSpec struct {
 	Secret corev1.LocalObjectReference `json:"secret"`
 }
 
-const (
-	// GithubBindingConditionReady is set when the binding has been applied to the subjects.
-	GithubBindingConditionReady = apis.ConditionReady
-)
-
 // GithubBindingStatus communicates the observed state of the GithubBinding (from the controller).
 type GithubBindingStatus struct {
+	duckv1beta1.Status `json:",inline"`
+}
+
+// SlackBindingSpec holds the desired state of the SlackBinding (from the client).
+type SlackBindingSpec struct {
+	// Subject holds a reference to the "pod speccable" Kubernetes resource which will
+	// be bound with Slack secret data.
+	Subject tracker.Reference `json:"subject"`
+
+	// Secret holds a reference to a secret containing the Slack auth data.
+	Secret corev1.LocalObjectReference `json:"secret"`
+}
+
+// SlackBindingStatus communicates the observed state of the SlackBinding (from the controller).
+type SlackBindingStatus struct {
 	duckv1beta1.Status `json:",inline"`
 }
 
@@ -78,4 +116,14 @@ type GithubBindingList struct {
 	metav1.ListMeta `json:"metadata"`
 
 	Items []GithubBinding `json:"items"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// SlackBindingList is a list of SlackBinding resources
+type SlackBindingList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []SlackBinding `json:"items"`
 }
