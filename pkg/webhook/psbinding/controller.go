@@ -20,13 +20,14 @@ import (
 	"context"
 
 	// Injection stuff
-	"github.com/mattmoor/bindings/pkg/apis/bindings/v1alpha1"
+
 	kubeclient "knative.dev/pkg/client/injection/kube/client"
 	mwhinformer "knative.dev/pkg/client/injection/kube/informers/admissionregistration/v1beta1/mutatingwebhookconfiguration"
 	secretinformer "knative.dev/pkg/client/injection/kube/informers/core/v1/secret"
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
+	duckv1 "knative.dev/pkg/apis/duck/v1"
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/kmeta"
 	"knative.dev/pkg/logging"
@@ -35,7 +36,7 @@ import (
 	"knative.dev/pkg/webhook"
 )
 
-// Bindable is implemented by Bindings whose subjects as PodSpeccable.
+// Bindable is implemented by Bindings whose subjects as duckv1.WithPod.
 type Bindable interface {
 	kmeta.Accessor
 	kmeta.OwnerRefable
@@ -45,8 +46,8 @@ type Bindable interface {
 	MarkBindingAvailable()
 	MarkBindingUnavailable(reason string, message string)
 
-	Do(context.Context, *v1alpha1.PodSpeccable)
-	Undo(context.Context, *v1alpha1.PodSpeccable)
+	Do(context.Context, *duckv1.WithPod)
+	Undo(context.Context, *duckv1.WithPod)
 }
 
 type ListAll func() ([]Bindable, error)

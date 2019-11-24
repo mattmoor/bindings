@@ -30,6 +30,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"knative.dev/pkg/apis/duck"
+	duckv1 "knative.dev/pkg/apis/duck/v1"
 	"knative.dev/pkg/configmap"
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/injection/clients/dynamicclient"
@@ -57,7 +58,7 @@ func NewController(
 	// TODO(mattmoor): Share these across bindings?  It would miss the initial informer sync...
 	psInformerFactory := &duck.TypedInformerFactory{
 		Client:       dc,
-		Type:         &v1alpha1.PodSpeccable{},
+		Type:         &duckv1.WithPod{},
 		ResyncPeriod: controller.GetResyncPeriod(ctx),
 		StopChannel:  ctx.Done(),
 	}

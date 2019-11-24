@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/mattmoor/bindings/pkg/apis/bindings/v1alpha1"
 	"github.com/mattmoor/bindings/pkg/webhook/psbinding"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -37,6 +36,7 @@ import (
 	"k8s.io/client-go/tools/record"
 	"knative.dev/pkg/apis"
 	"knative.dev/pkg/apis/duck"
+	duckv1 "knative.dev/pkg/apis/duck/v1"
 	"knative.dev/pkg/kmeta"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/tracker"
@@ -112,7 +112,7 @@ func (r *Base) RemoveFinalizer(ctx context.Context, fb kmeta.Accessor) error {
 	return err
 }
 
-func (r *Base) ReconcileSubject(ctx context.Context, fb psbinding.Bindable, mutation func(context.Context, *v1alpha1.PodSpeccable)) error {
+func (r *Base) ReconcileSubject(ctx context.Context, fb psbinding.Bindable, mutation func(context.Context, *duckv1.WithPod)) error {
 	logger := logging.FromContext(ctx)
 
 	subject := fb.GetSubject()
@@ -134,7 +134,7 @@ func (r *Base) ReconcileSubject(ctx context.Context, fb psbinding.Bindable, muta
 		return fmt.Errorf("error getting a lister for resource '%+v': %w", gvr, err)
 	}
 
-	var referents []*v1alpha1.PodSpeccable
+	var referents []*duckv1.WithPod
 	if subject.Name != "" {
 		psObj, err := lister.ByNamespace(subject.Namespace).Get(subject.Name)
 		if apierrs.IsNotFound(err) {
@@ -143,7 +143,7 @@ func (r *Base) ReconcileSubject(ctx context.Context, fb psbinding.Bindable, muta
 		} else if err != nil {
 			return fmt.Errorf("error fetching Pod Speccable %v: %w", subject, err)
 		}
-		referents = append(referents, psObj.(*v1alpha1.PodSpeccable))
+		referents = append(referents, psObj.(*duckv1.WithPod))
 	} else {
 		selector, err := metav1.LabelSelectorAsSelector(subject.Selector)
 		if err != nil {
@@ -157,7 +157,7 @@ func (r *Base) ReconcileSubject(ctx context.Context, fb psbinding.Bindable, muta
 			return fmt.Errorf("error fetching Pod Scalable %v: %w", subject, err)
 		}
 		for _, psObj := range psObjs {
-			referents = append(referents, psObj.(*v1alpha1.PodSpeccable))
+			referents = append(referents, psObj.(*duckv1.WithPod))
 		}
 	}
 

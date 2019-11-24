@@ -1073,6 +1073,7 @@
     "changeset",
     "client/injection/kube/client",
     "client/injection/kube/informers/admissionregistration/v1beta1/mutatingwebhookconfiguration",
+    "client/injection/kube/informers/admissionregistration/v1beta1/validatingwebhookconfiguration",
     "client/injection/kube/informers/core/v1/secret",
     "client/injection/kube/informers/factory",
     "codegen/cmd/injection-gen",
@@ -1098,7 +1099,10 @@
     "webhook",
     "webhook/certificates",
     "webhook/certificates/resources",
+    "webhook/configmaps",
     "webhook/resourcesemantics",
+    "webhook/resourcesemantics/defaulting",
+    "webhook/resourcesemantics/validation",
   ]
   pruneopts = "T"
   revision = "2ec0f8da50578dcc3d830571d0de24de834579c8"
@@ -1185,6 +1189,7 @@
     "knative.dev/pkg/kmeta",
     "knative.dev/pkg/kmp",
     "knative.dev/pkg/logging",
+    "knative.dev/pkg/metrics",
     "knative.dev/pkg/ptr",
     "knative.dev/pkg/signals",
     "knative.dev/pkg/system",
@@ -1192,7 +1197,10 @@
     "knative.dev/pkg/webhook",
     "knative.dev/pkg/webhook/certificates",
     "knative.dev/pkg/webhook/certificates/resources",
+    "knative.dev/pkg/webhook/configmaps",
     "knative.dev/pkg/webhook/resourcesemantics",
+    "knative.dev/pkg/webhook/resourcesemantics/defaulting",
+    "knative.dev/pkg/webhook/resourcesemantics/validation",
     "knative.dev/test-infra/scripts",
     "knative.dev/test-infra/tools/dep-collector",
   ]

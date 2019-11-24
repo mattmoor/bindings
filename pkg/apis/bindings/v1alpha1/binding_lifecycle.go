@@ -22,6 +22,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"knative.dev/pkg/apis"
+	duckv1 "knative.dev/pkg/apis/duck/v1"
 	"knative.dev/pkg/tracker"
 
 	"github.com/mattmoor/bindings/pkg/github"
@@ -67,7 +68,7 @@ func (fbs *GithubBindingStatus) MarkBindingAvailable() {
 	ghCondSet.Manage(fbs).MarkTrue(GithubBindingConditionReady)
 }
 
-func (fb *GithubBinding) Do(ctx context.Context, ps *PodSpeccable) {
+func (fb *GithubBinding) Do(ctx context.Context, ps *duckv1.WithPod) {
 
 	// First undo so that we can just unconditionally append below.
 	fb.Undo(ctx, ps)
@@ -98,7 +99,7 @@ func (fb *GithubBinding) Do(ctx context.Context, ps *PodSpeccable) {
 	}
 }
 
-func (fb *GithubBinding) Undo(ctx context.Context, ps *PodSpeccable) {
+func (fb *GithubBinding) Undo(ctx context.Context, ps *duckv1.WithPod) {
 	spec := ps.Spec.Template.Spec
 
 	// Make sure the PodSpec does NOT have the github volume.
@@ -166,7 +167,7 @@ func (fbs *SlackBindingStatus) MarkBindingAvailable() {
 	slackCondSet.Manage(fbs).MarkTrue(SlackBindingConditionReady)
 }
 
-func (fb *SlackBinding) Do(ctx context.Context, ps *PodSpeccable) {
+func (fb *SlackBinding) Do(ctx context.Context, ps *duckv1.WithPod) {
 
 	// First undo so that we can just unconditionally append below.
 	fb.Undo(ctx, ps)
@@ -197,7 +198,7 @@ func (fb *SlackBinding) Do(ctx context.Context, ps *PodSpeccable) {
 	}
 }
 
-func (fb *SlackBinding) Undo(ctx context.Context, ps *PodSpeccable) {
+func (fb *SlackBinding) Undo(ctx context.Context, ps *duckv1.WithPod) {
 	spec := ps.Spec.Template.Spec
 
 	// Make sure the PodSpec does NOT have the slack volume.
@@ -265,7 +266,7 @@ func (fbs *TwitterBindingStatus) MarkBindingAvailable() {
 	twitterCondSet.Manage(fbs).MarkTrue(TwitterBindingConditionReady)
 }
 
-func (fb *TwitterBinding) Do(ctx context.Context, ps *PodSpeccable) {
+func (fb *TwitterBinding) Do(ctx context.Context, ps *duckv1.WithPod) {
 
 	// First undo so that we can just unconditionally append below.
 	fb.Undo(ctx, ps)
@@ -296,7 +297,7 @@ func (fb *TwitterBinding) Do(ctx context.Context, ps *PodSpeccable) {
 	}
 }
 
-func (fb *TwitterBinding) Undo(ctx context.Context, ps *PodSpeccable) {
+func (fb *TwitterBinding) Undo(ctx context.Context, ps *duckv1.WithPod) {
 	spec := ps.Spec.Template.Spec
 
 	// Make sure the PodSpec does NOT have the twitter volume.

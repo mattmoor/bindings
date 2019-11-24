@@ -26,7 +26,6 @@ import (
 	"sync"
 
 	"github.com/markbates/inflect"
-	"github.com/mattmoor/bindings/pkg/apis/bindings/v1alpha1"
 	admissionv1beta1 "k8s.io/api/admission/v1beta1"
 	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	appsv1 "k8s.io/api/apps/v1"
@@ -39,6 +38,7 @@ import (
 	admissionlisters "k8s.io/client-go/listers/admissionregistration/v1beta1"
 	corelisters "k8s.io/client-go/listers/core/v1"
 	"knative.dev/pkg/apis/duck"
+	duckv1 "knative.dev/pkg/apis/duck/v1"
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/kmp"
 	"knative.dev/pkg/logging"
@@ -110,7 +110,7 @@ func (ac *reconciler) Admit(ctx context.Context, request *admissionv1beta1.Admis
 		return &admissionv1beta1.AdmissionResponse{Allowed: true}
 	}
 
-	orig := &v1alpha1.PodSpeccable{}
+	orig := &duckv1.WithPod{}
 	decoder := json.NewDecoder(bytes.NewBuffer(request.Object.Raw))
 	if err := decoder.Decode(&orig); err != nil {
 		return webhook.MakeErrorStatus("unable to decode object: %v", err)
