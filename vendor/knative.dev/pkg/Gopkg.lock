@@ -356,6 +356,14 @@
   revision = "f2b4162afba35581b6d4a50d3b8f34e33c144682"
 
 [[projects]]
+  branch = "master"
+  digest = "1:cf68a79fd02ab0f6942b9567d03d054b6568212fcc22de2a4afdefd096923749"
+  name = "github.com/kballard/go-shellquote"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "95032a82bc518f77982ea72343cc1ade730072f0"
+
+[[projects]]
   digest = "1:58999a98719fddbac6303cb17e8d85b945f60b72f48e3a2df6b950b97fa926f1"
   name = "github.com/konsorten/go-windows-terminal-sequences"
   packages = ["."]
@@ -1260,14 +1268,14 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:5299d75a2b08a91c54ffb8b76afe21eb5f1ecf7bc4d67b859fc081f9415452bc"
+  digest = "1:85fe0cadd6ab83f3d7f948c60b6d422dc9cd16664246249968dab5d828ae8dfd"
   name = "knative.dev/test-infra"
   packages = [
     "scripts",
     "tools/dep-collector",
   ]
   pruneopts = "UT"
-  revision = "6c8da588aaa3d2bff76a9c37fd6ac5c9a6c02c09"
+  revision = "fad831028edbe066665977ea7bf366c3d5c0a2d1"
 
 [[projects]]
   digest = "1:8730e0150dfb2b7e173890c8b9868e7a273082ef8e39f4940e3506a481cf895c"
@@ -1290,6 +1298,7 @@
     "github.com/davecgh/go-spew/spew",
     "github.com/evanphx/json-patch",
     "github.com/ghodss/yaml",
+    "github.com/golang/glog",
     "github.com/golang/protobuf/jsonpb",
     "github.com/golang/protobuf/proto",
     "github.com/google/go-cmp/cmp",
@@ -1301,6 +1310,7 @@
     "github.com/google/mako/spec/proto/mako_go_proto",
     "github.com/google/uuid",
     "github.com/gorilla/websocket",
+    "github.com/kballard/go-shellquote",
     "github.com/markbates/inflect",
     "github.com/mattbaird/jsonpatch",
     "github.com/openzipkin/zipkin-go",

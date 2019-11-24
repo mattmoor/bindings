@@ -14,28 +14,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-// error.go helps with error handling
-
-package helpers
+package resourcesemantics
 
 import (
-	"errors"
-	"strings"
+	"k8s.io/apimachinery/pkg/runtime"
+	"knative.dev/pkg/apis"
 )
 
-// CombineErrors combines slice of errors and return a single error
-func CombineErrors(errs []error) error {
-	if len(errs) == 0 {
-		return nil
-	}
-	msgs := make([]string, 0)
-	for _, err := range errs {
-		if err != nil {
-			msgs = append(msgs, err.Error())
-		}
-	}
-	if len(msgs) == 0 {
-		return nil
-	}
-	return errors.New(strings.Join(msgs, "\n"))
+// GenericCRD is the interface definition that allows us to perform the generic
+// CRD actions like deciding whether to increment generation and so forth.
+type GenericCRD interface {
+	apis.Defaultable
+	apis.Validatable
+	runtime.Object
 }

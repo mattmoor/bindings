@@ -15,7 +15,7 @@
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: MutatingWebhookConfiguration
 metadata:
-  name: webhook.bindings.mattmoor.dev
+  name: defaulting.webhook.bindings.mattmoor.dev
   labels:
     bindings.mattmoor.dev/release: devel
 webhooks:
@@ -26,7 +26,43 @@ webhooks:
       name: webhook
       namespace: binding-system
   failurePolicy: Fail
-  name: webhook.bindings.mattmoor.dev
+  name: defaulting.webhook.bindings.mattmoor.dev
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validation.webhook.bindings.mattmoor.dev
+  labels:
+    bindings.mattmoor.dev/release: devel
+webhooks:
+- admissionReviewVersions:
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook
+      namespace: binding-system
+  failurePolicy: Fail
+  name: validation.webhook.bindings.mattmoor.dev
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: config.webhook.bindings.mattmoor.dev
+  labels:
+    bindings.mattmoor.dev/release: devel
+webhooks:
+- admissionReviewVersions:
+  - v1beta1
+  clientConfig:
+    service:
+      name: webhook
+      namespace: binding-system
+  failurePolicy: Fail
+  name: config.webhook.bindings.mattmoor.dev
+  namespaceSelector:
+    matchExpressions:
+    - key: bindings.mattmoor.dev/release
+      operator: Exists
 ---
 apiVersion: admissionregistration.k8s.io/v1beta1
 kind: MutatingWebhookConfiguration

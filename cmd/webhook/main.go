@@ -25,10 +25,15 @@ import (
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/injection"
 	"knative.dev/pkg/injection/sharedmain"
+	"knative.dev/pkg/logging"
+	"knative.dev/pkg/metrics"
 	"knative.dev/pkg/signals"
 	"knative.dev/pkg/webhook"
 	"knative.dev/pkg/webhook/certificates"
+	"knative.dev/pkg/webhook/configmaps"
 	"knative.dev/pkg/webhook/resourcesemantics"
+	"knative.dev/pkg/webhook/resourcesemantics/defaulting"
+	"knative.dev/pkg/webhook/resourcesemantics/validation"
 
 	"github.com/mattmoor/bindings/pkg/apis/bindings/v1alpha1"
 	"github.com/mattmoor/bindings/pkg/reconciler/githubbinding"
@@ -37,20 +42,22 @@ import (
 	"github.com/mattmoor/bindings/pkg/webhook/psbinding"
 )
 
-func NewResourceAdmissionController(ctx context.Context, cmw configmap.Watcher) *controller.Impl {
-	return resourcesemantics.NewAdmissionController(ctx,
+var types = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
+	v1alpha1.SchemeGroupVersion.WithKind("GithubBinding"):  &v1alpha1.GithubBinding{},
+	v1alpha1.SchemeGroupVersion.WithKind("SlackBinding"):   &v1alpha1.SlackBinding{},
+	v1alpha1.SchemeGroupVersion.WithKind("TwitterBinding"): &v1alpha1.TwitterBinding{},
+}
+
+func NewDefaultingAdmissionController(ctx context.Context, cmw configmap.Watcher) *controller.Impl {
+	return defaulting.NewAdmissionController(ctx,
 		// Name of the resource webhook.
-		"webhook.bindings.mattmoor.dev",
+		"defaulting.webhook.bindings.mattmoor.dev",
 
 		// The path on which to serve the webhook.
-		"/resource-validation",
+		"/defaulting",
 
 		// The resources to validate and default.
-		map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
-			v1alpha1.SchemeGroupVersion.WithKind("GithubBinding"):  &v1alpha1.GithubBinding{},
-			v1alpha1.SchemeGroupVersion.WithKind("SlackBinding"):   &v1alpha1.SlackBinding{},
-			v1alpha1.SchemeGroupVersion.WithKind("TwitterBinding"): &v1alpha1.TwitterBinding{},
-		},
+		types,
 
 		// A function that infuses the context passed to Validate/SetDefaults with custom metadata.
 		func(ctx context.Context) context.Context {
@@ -59,6 +66,44 @@ func NewResourceAdmissionController(ctx context.Context, cmw configmap.Watcher) 
 
 		// Whether to disallow unknown fields.
 		true,
+	)
+}
+
+func NewValidationAdmissionController(ctx context.Context, cmw configmap.Watcher) *controller.Impl {
+	return validation.NewAdmissionController(ctx,
+		// Name of the resource webhook.
+		"validation.webhook.bindings.mattmoor.dev",
+
+		// The path on which to serve the webhook.
+		"/validation",
+
+		// The resources to validate and default.
+		types,
+
+		// A function that infuses the context passed to Validate/SetDefaults with custom metadata.
+		func(ctx context.Context) context.Context {
+			return ctx
+		},
+
+		// Whether to disallow unknown fields.
+		true,
+	)
+}
+
+func NewConfigValidationController(ctx context.Context, cmw configmap.Watcher) *controller.Impl {
+	return configmaps.NewAdmissionController(ctx,
+
+		// Name of the configmap webhook.
+		"config.webhook.bindings.mattmoor.dev",
+
+		// The path on which to serve the webhook.
+		"/config-validation",
+
+		// The configmaps to validate.
+		configmap.Constructors{
+			logging.ConfigMapName(): logging.NewConfigFromConfigMap,
+			metrics.ConfigMapName(): metrics.NewObservabilityConfigFromConfigMap,
+		},
 	)
 }
 
@@ -97,8 +142,8 @@ func main() {
 		certificates.NewController,
 
 		// Our singleton webhook admission controllers
-		NewResourceAdmissionController,
-		// TODO(mattmoor): Pull in the resource semantics split.
+		NewDefaultingAdmissionController,
+		NewValidationAdmissionController,
 		// TODO(mattmoor): Support config validation
 
 		// For each binding we have a controller and a binding webhook.
