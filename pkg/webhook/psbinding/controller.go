@@ -20,7 +20,6 @@ import (
 	"context"
 
 	// Injection stuff
-
 	kubeclient "knative.dev/pkg/client/injection/kube/client"
 	mwhinformer "knative.dev/pkg/client/injection/kube/informers/admissionregistration/v1beta1/mutatingwebhookconfiguration"
 	secretinformer "knative.dev/pkg/client/injection/kube/informers/core/v1/secret"
@@ -83,7 +82,7 @@ func NewAdmissionController(
 	}
 
 	logger := logging.FromContext(ctx)
-	c := controller.NewImpl(wh, logger, "GithubBindingWebhook")
+	c := controller.NewImpl(wh, logger, name)
 
 	// It doesn't matter what we enqueue because we will always Reconcile
 	// the named MWH resource.

@@ -71,7 +71,7 @@ func NewController(
 				if err != nil {
 					return nil, err
 				}
-				return psbinding.ToUnstructured(obj)
+				return duck.ToUnstructured(obj)
 			},
 			DynamicClient: dc,
 			Recorder: record.NewBroadcaster().NewRecorder(

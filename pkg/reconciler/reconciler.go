@@ -213,7 +213,7 @@ func (r *Base) UpdateStatus(ctx context.Context, desired psbinding.Bindable) err
 		return err
 	}
 
-	ud, err := psbinding.ToUnstructured(desired)
+	ud, err := duck.ToUnstructured(desired)
 	if err != nil {
 		logging.FromContext(ctx).Errorf("Error converting desired: %v", err)
 		return err
