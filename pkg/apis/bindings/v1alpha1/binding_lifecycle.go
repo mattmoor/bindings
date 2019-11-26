@@ -28,6 +28,7 @@ import (
 	"github.com/mattmoor/bindings/pkg/github"
 	"github.com/mattmoor/bindings/pkg/slack"
 	"github.com/mattmoor/bindings/pkg/twitter"
+	"github.com/mattmoor/bindings/pkg/webhook/psbinding"
 )
 
 const (
@@ -47,16 +48,18 @@ func (fb *GithubBinding) GetSubject() tracker.Reference {
 	return fb.Spec.Subject
 }
 
+// GetBindingStatus implements Bindable
+func (fb *GithubBinding) GetBindingStatus() psbinding.BindableStatus {
+	return &fb.Status
+}
+
+// SetObservedGeneration implements BindableStatus
+func (fbs *GithubBindingStatus) SetObservedGeneration(gen int64) {
+	fbs.ObservedGeneration = gen
+}
+
 func (fbs *GithubBindingStatus) InitializeConditions() {
 	ghCondSet.Manage(fbs).InitializeConditions()
-}
-
-func (fb *GithubBinding) MarkBindingUnavailable(reason, message string) {
-	fb.Status.MarkBindingUnavailable(reason, message)
-}
-
-func (fb *GithubBinding) MarkBindingAvailable() {
-	fb.Status.MarkBindingAvailable()
 }
 
 func (fbs *GithubBindingStatus) MarkBindingUnavailable(reason, message string) {
@@ -146,16 +149,18 @@ func (fb *SlackBinding) GetSubject() tracker.Reference {
 	return fb.Spec.Subject
 }
 
+// GetBindingStatus implements Bindable
+func (fb *SlackBinding) GetBindingStatus() psbinding.BindableStatus {
+	return &fb.Status
+}
+
+// SetObservedGeneration implements BindableStatus
+func (fbs *SlackBindingStatus) SetObservedGeneration(gen int64) {
+	fbs.ObservedGeneration = gen
+}
+
 func (fbs *SlackBindingStatus) InitializeConditions() {
 	slackCondSet.Manage(fbs).InitializeConditions()
-}
-
-func (fb *SlackBinding) MarkBindingUnavailable(reason, message string) {
-	fb.Status.MarkBindingUnavailable(reason, message)
-}
-
-func (fb *SlackBinding) MarkBindingAvailable() {
-	fb.Status.MarkBindingAvailable()
 }
 
 func (fbs *SlackBindingStatus) MarkBindingUnavailable(reason, message string) {
@@ -245,16 +250,18 @@ func (fb *TwitterBinding) GetSubject() tracker.Reference {
 	return fb.Spec.Subject
 }
 
+// GetBindingStatus implements Bindable
+func (fb *TwitterBinding) GetBindingStatus() psbinding.BindableStatus {
+	return &fb.Status
+}
+
+// SetObservedGeneration implements BindableStatus
+func (fbs *TwitterBindingStatus) SetObservedGeneration(gen int64) {
+	fbs.ObservedGeneration = gen
+}
+
 func (fbs *TwitterBindingStatus) InitializeConditions() {
 	twitterCondSet.Manage(fbs).InitializeConditions()
-}
-
-func (fb *TwitterBinding) MarkBindingUnavailable(reason, message string) {
-	fb.Status.MarkBindingUnavailable(reason, message)
-}
-
-func (fb *TwitterBinding) MarkBindingAvailable() {
-	fb.Status.MarkBindingAvailable()
 }
 
 func (fbs *TwitterBindingStatus) MarkBindingUnavailable(reason, message string) {

@@ -19,7 +19,6 @@ package twitterbinding
 import (
 	"context"
 
-	fbclient "github.com/mattmoor/bindings/pkg/client/injection/client"
 	fbinformer "github.com/mattmoor/bindings/pkg/client/injection/informers/bindings/v1alpha1/twitterbinding"
 	"knative.dev/pkg/client/injection/ducks/duck/v1/podspecable"
 
@@ -54,18 +53,14 @@ func NewController(
 	dc := dynamicclient.Get(ctx)
 	psInformerFactory := podspecable.Get(ctx)
 
-	c := &Reconciler{
-		BaseReconciler: psbinding.BaseReconciler{
-			GVR: v1alpha1.SchemeGroupVersion.WithResource("twitterbindings"),
-			Get: func(namespace string, name string) (duck.OneOfOurs, error) {
-				return fbInformer.Lister().TwitterBindings(namespace).Get(name)
-			},
-			DynamicClient: dc,
-			Recorder: record.NewBroadcaster().NewRecorder(
-				scheme.Scheme, corev1.EventSource{Component: controllerAgentName}),
+	c := &psbinding.BaseReconciler{
+		GVR: v1alpha1.SchemeGroupVersion.WithResource("twitterbindings"),
+		Get: func(namespace string, name string) (psbinding.Bindable, error) {
+			return fbInformer.Lister().TwitterBindings(namespace).Get(name)
 		},
-		Client: fbclient.Get(ctx),
-		Lister: fbInformer.Lister(),
+		DynamicClient: dc,
+		Recorder: record.NewBroadcaster().NewRecorder(
+			scheme.Scheme, corev1.EventSource{Component: controllerAgentName}),
 	}
 	impl := controller.NewImpl(c, logger, "TwitterBindings")
 

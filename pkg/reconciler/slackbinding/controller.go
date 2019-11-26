@@ -19,7 +19,6 @@ package slackbinding
 import (
 	"context"
 
-	fbclient "github.com/mattmoor/bindings/pkg/client/injection/client"
 	fbinformer "github.com/mattmoor/bindings/pkg/client/injection/informers/bindings/v1alpha1/slackbinding"
 
 	corev1 "k8s.io/api/core/v1"
@@ -54,18 +53,14 @@ func NewController(
 	dc := dynamicclient.Get(ctx)
 	psInformerFactory := podspecable.Get(ctx)
 
-	c := &Reconciler{
-		BaseReconciler: psbinding.BaseReconciler{
-			GVR: v1alpha1.SchemeGroupVersion.WithResource("slackbindings"),
-			Get: func(namespace string, name string) (duck.OneOfOurs, error) {
-				return fbInformer.Lister().SlackBindings(namespace).Get(name)
-			},
-			DynamicClient: dc,
-			Recorder: record.NewBroadcaster().NewRecorder(
-				scheme.Scheme, corev1.EventSource{Component: controllerAgentName}),
+	c := &psbinding.BaseReconciler{
+		GVR: v1alpha1.SchemeGroupVersion.WithResource("slackbindings"),
+		Get: func(namespace string, name string) (psbinding.Bindable, error) {
+			return fbInformer.Lister().SlackBindings(namespace).Get(name)
 		},
-		Client: fbclient.Get(ctx),
-		Lister: fbInformer.Lister(),
+		DynamicClient: dc,
+		Recorder: record.NewBroadcaster().NewRecorder(
+			scheme.Scheme, corev1.EventSource{Component: controllerAgentName}),
 	}
 	impl := controller.NewImpl(c, logger, "SlackBindings")
 

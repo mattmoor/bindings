@@ -26,24 +26,28 @@ import (
 
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/cache"
+	"knative.dev/pkg/apis/duck"
 	duckv1 "knative.dev/pkg/apis/duck/v1"
 	"knative.dev/pkg/controller"
-	"knative.dev/pkg/kmeta"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/system"
 	"knative.dev/pkg/tracker"
 	"knative.dev/pkg/webhook"
 )
 
-// Bindable is implemented by Bindings whose subjects as duckv1.WithPod.
-type Bindable interface {
-	kmeta.Accessor
-	kmeta.OwnerRefable
-
-	GetSubject() tracker.Reference
-
+type BindableStatus interface {
+	InitializeConditions()
 	MarkBindingAvailable()
 	MarkBindingUnavailable(reason string, message string)
+	SetObservedGeneration(int64)
+}
+
+// Bindable is implemented by Bindings whose subjects as duckv1.WithPod.
+type Bindable interface {
+	duck.OneOfOurs
+
+	GetSubject() tracker.Reference
+	GetBindingStatus() BindableStatus
 
 	Do(context.Context, *duckv1.WithPod)
 	Undo(context.Context, *duckv1.WithPod)

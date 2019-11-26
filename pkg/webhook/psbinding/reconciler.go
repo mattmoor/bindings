@@ -23,7 +23,9 @@ import (
 	"reflect"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -31,10 +33,12 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/dynamic"
+	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"knative.dev/pkg/apis"
 	"knative.dev/pkg/apis/duck"
 	duckv1 "knative.dev/pkg/apis/duck/v1"
+	"knative.dev/pkg/controller"
 	"knative.dev/pkg/kmeta"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/tracker"
@@ -45,7 +49,7 @@ type BaseReconciler struct {
 	// The GVR of the "primary key" resource
 	GVR schema.GroupVersionResource
 
-	Get func(namespace string, name string) (duck.OneOfOurs, error)
+	Get func(namespace string, name string) (Bindable, error)
 
 	// DynamicClient is used to patch subjects.
 	DynamicClient dynamic.Interface
@@ -61,6 +65,72 @@ type BaseReconciler struct {
 	// Recorder is an event recorder for recording Event resources to the
 	// Kubernetes API.
 	Recorder record.EventRecorder
+}
+
+// Check that our Reconciler implements controller.Reconciler
+var _ controller.Reconciler = (*BaseReconciler)(nil)
+
+// Reconcile implements controller.Reconciler
+func (r *BaseReconciler) Reconcile(ctx context.Context, key string) error {
+	logger := logging.FromContext(ctx)
+
+	// Convert the namespace/name string into a distinct namespace and name
+	namespace, name, err := cache.SplitMetaNamespaceKey(key)
+	if err != nil {
+		logger.Errorf("invalid resource key: %s", key)
+		return nil
+	}
+
+	// Get the resource with this namespace/name.
+	original, err := r.Get(namespace, name)
+	if apierrs.IsNotFound(err) {
+		// The resource may no longer exist, in which case we stop processing.
+		logger.Errorf("resource %q no longer exists", key)
+		return nil
+	} else if err != nil {
+		return err
+	}
+	// Don't modify the informers copy.
+	resource := original.DeepCopyObject().(Bindable)
+
+	// Reconcile this copy of the resource and then write back any status
+	// updates regardless of whether the reconciliation errored out.
+	reconcileErr := r.reconcile(ctx, resource)
+	if equality.Semantic.DeepEqual(original.GetBindingStatus(), resource.GetBindingStatus()) {
+		// If we didn't change anything then don't call updateStatus.
+		// This is important because the copy we loaded from the informer's
+		// cache may be stale and we don't want to overwrite a prior update
+		// to status with this stale state.
+	} else if err = r.UpdateStatus(ctx, resource); err != nil {
+		logger.Warnw("Failed to update resource status", zap.Error(err))
+		r.Recorder.Eventf(resource, corev1.EventTypeWarning, "UpdateFailed",
+			"Failed to update status for %q: %v", resource.GetName(), err)
+		return err
+	}
+	if reconcileErr != nil {
+		r.Recorder.Event(resource, corev1.EventTypeWarning, "InternalError", reconcileErr.Error())
+	}
+	return reconcileErr
+}
+
+func (r *BaseReconciler) reconcile(ctx context.Context, fb Bindable) error {
+	if fb.GetDeletionTimestamp() != nil {
+		// Check for a DeletionTimestamp.  If present, elide the normal reconcile logic.
+		// When a controller needs finalizer handling, it would go here.
+		return r.ReconcileDeletion(ctx, fb)
+	}
+	fb.GetBindingStatus().InitializeConditions()
+
+	if err := r.EnsureFinalizer(ctx, fb); err != nil {
+		return err
+	}
+
+	if err := r.ReconcileSubject(ctx, fb, fb.Do); err != nil {
+		return err
+	}
+
+	fb.GetBindingStatus().SetObservedGeneration(fb.GetGeneration())
+	return nil
 }
 
 func (r *BaseReconciler) EnsureFinalizer(ctx context.Context, fb kmeta.Accessor) error {
@@ -83,6 +153,21 @@ func (r *BaseReconciler) EnsureFinalizer(ctx context.Context, fb kmeta.Accessor)
 	_, err = r.DynamicClient.Resource(r.GVR).Namespace(fb.GetNamespace()).Patch(fb.GetName(),
 		types.MergePatchType, patch, metav1.PatchOptions{})
 	return err
+}
+
+func (r *BaseReconciler) ReconcileDeletion(ctx context.Context, fb Bindable) error {
+	if !r.IsFinalizing(ctx, fb) {
+		return nil
+	}
+
+	logging.FromContext(ctx).Infof("Removing the binding for %s", fb.GetName())
+	if err := r.ReconcileSubject(ctx, fb, fb.Undo); apierrs.IsNotFound(err) {
+		// Everything is fine.
+	} else if err != nil {
+		return err
+	}
+
+	return r.RemoveFinalizer(ctx, fb)
 }
 
 func (r *BaseReconciler) IsFinalizing(ctx context.Context, fb kmeta.Accessor) bool {
@@ -136,7 +221,7 @@ func (r *BaseReconciler) ReconcileSubject(ctx context.Context, fb Bindable, muta
 	if subject.Name != "" {
 		psObj, err := lister.ByNamespace(subject.Namespace).Get(subject.Name)
 		if apierrs.IsNotFound(err) {
-			fb.MarkBindingUnavailable("SubjectMissing", err.Error())
+			fb.GetBindingStatus().MarkBindingUnavailable("SubjectMissing", err.Error())
 			return err
 		} else if err != nil {
 			return fmt.Errorf("error fetching Pod Speccable %v: %w", subject, err)
@@ -149,7 +234,7 @@ func (r *BaseReconciler) ReconcileSubject(ctx context.Context, fb Bindable, muta
 		}
 		psObjs, err := lister.ByNamespace(subject.Namespace).List(selector)
 		if apierrs.IsNotFound(err) {
-			fb.MarkBindingUnavailable("SubjectMissing", err.Error())
+			fb.GetBindingStatus().MarkBindingUnavailable("SubjectMissing", err.Error())
 			return err
 		} else if err != nil {
 			return fmt.Errorf("error fetching Pod Scalable %v: %w", subject, err)
@@ -195,10 +280,10 @@ func (r *BaseReconciler) ReconcileSubject(ctx context.Context, fb Bindable, muta
 	}
 
 	if err := eg.Wait(); err != nil {
-		fb.MarkBindingUnavailable("BindingFailed", err.Error())
+		fb.GetBindingStatus().MarkBindingUnavailable("BindingFailed", err.Error())
 		return err
 	}
-	fb.MarkBindingAvailable()
+	fb.GetBindingStatus().MarkBindingAvailable()
 	return nil
 }
 
