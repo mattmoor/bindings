@@ -22,6 +22,7 @@ import (
 	"github.com/mattmoor/bindings/pkg/apis/bindings/v1alpha1"
 	clientset "github.com/mattmoor/bindings/pkg/client/clientset/versioned"
 	listers "github.com/mattmoor/bindings/pkg/client/listers/bindings/v1alpha1"
+	"github.com/mattmoor/bindings/pkg/webhook/psbinding"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
@@ -29,13 +30,11 @@ import (
 	"k8s.io/client-go/tools/cache"
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/logging"
-
-	"github.com/mattmoor/bindings/pkg/reconciler"
 )
 
 // Reconciler implements controller.Reconciler for TwitterBinding resources.
 type Reconciler struct {
-	reconciler.Base
+	psbinding.BaseReconciler
 
 	// Client is used to write back status updates.
 	Client clientset.Interface

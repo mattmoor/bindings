@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package reconciler
+package psbinding
 
 import (
 	"context"
@@ -22,13 +22,11 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/mattmoor/bindings/pkg/webhook/psbinding"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	"k8s.io/apimachinery/pkg/api/equality"
 	apierrs "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -42,12 +40,12 @@ import (
 	"knative.dev/pkg/tracker"
 )
 
-// Base helps implement controller.Reconciler for Binding resources.
-type Base struct {
+// BaseReconciler helps implement controller.Reconciler for Binding resources.
+type BaseReconciler struct {
 	// The GVR of the "primary key" resource
 	GVR schema.GroupVersionResource
 
-	Get func(namespace string, name string) (*unstructured.Unstructured, error)
+	Get func(namespace string, name string) (duck.OneOfOurs, error)
 
 	// DynamicClient is used to patch subjects.
 	DynamicClient dynamic.Interface
@@ -65,7 +63,7 @@ type Base struct {
 	Recorder record.EventRecorder
 }
 
-func (r *Base) EnsureFinalizer(ctx context.Context, fb kmeta.Accessor) error {
+func (r *BaseReconciler) EnsureFinalizer(ctx context.Context, fb kmeta.Accessor) error {
 	finalizers := sets.NewString(fb.GetFinalizers()...)
 	if finalizers.Has(r.GVR.GroupResource().String()) {
 		return nil
@@ -87,12 +85,12 @@ func (r *Base) EnsureFinalizer(ctx context.Context, fb kmeta.Accessor) error {
 	return err
 }
 
-func (r *Base) IsFinalizing(ctx context.Context, fb kmeta.Accessor) bool {
+func (r *BaseReconciler) IsFinalizing(ctx context.Context, fb kmeta.Accessor) bool {
 	// If our Finalizer is first, then we are finalizing.
 	return len(fb.GetFinalizers()) != 0 && fb.GetFinalizers()[0] == r.GVR.GroupResource().String()
 }
 
-func (r *Base) RemoveFinalizer(ctx context.Context, fb kmeta.Accessor) error {
+func (r *BaseReconciler) RemoveFinalizer(ctx context.Context, fb kmeta.Accessor) error {
 	logger := logging.FromContext(ctx)
 	logger.Info("Removing Finalizer")
 
@@ -112,7 +110,7 @@ func (r *Base) RemoveFinalizer(ctx context.Context, fb kmeta.Accessor) error {
 	return err
 }
 
-func (r *Base) ReconcileSubject(ctx context.Context, fb psbinding.Bindable, mutation func(context.Context, *duckv1.WithPod)) error {
+func (r *BaseReconciler) ReconcileSubject(ctx context.Context, fb Bindable, mutation func(context.Context, *duckv1.WithPod)) error {
 	logger := logging.FromContext(ctx)
 
 	subject := fb.GetSubject()
@@ -206,10 +204,16 @@ func (r *Base) ReconcileSubject(ctx context.Context, fb psbinding.Bindable, muta
 
 // Update the Status of the resource.  Caller is responsible for checking
 // for semantic differences before calling.
-func (r *Base) UpdateStatus(ctx context.Context, desired psbinding.Bindable) error {
+func (r *BaseReconciler) UpdateStatus(ctx context.Context, desired Bindable) error {
 	actual, err := r.Get(desired.GetNamespace(), desired.GetName())
 	if err != nil {
 		logging.FromContext(ctx).Errorf("Error fetching actual: %v", err)
+		return err
+	}
+
+	ua, err := duck.ToUnstructured(actual)
+	if err != nil {
+		logging.FromContext(ctx).Errorf("Error converting actual: %v", err)
 		return err
 	}
 
@@ -219,13 +223,13 @@ func (r *Base) UpdateStatus(ctx context.Context, desired psbinding.Bindable) err
 		return err
 	}
 
-	actualStatus := actual.Object["status"]
+	actualStatus := ua.Object["status"]
 	desiredStatus := ud.Object["status"]
 	if reflect.DeepEqual(actualStatus, desiredStatus) {
 		return nil
 	}
 
-	forUpdate := actual
+	forUpdate := ua
 	forUpdate.Object["status"] = desiredStatus
 	_, err = r.DynamicClient.Resource(r.GVR).Namespace(desired.GetNamespace()).UpdateStatus(
 		forUpdate, metav1.UpdateOptions{})

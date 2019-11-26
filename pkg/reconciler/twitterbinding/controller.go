@@ -21,16 +21,14 @@ import (
 
 	fbclient "github.com/mattmoor/bindings/pkg/client/injection/client"
 	fbinformer "github.com/mattmoor/bindings/pkg/client/injection/informers/bindings/v1alpha1/twitterbinding"
-	"github.com/mattmoor/bindings/pkg/reconciler"
+	"knative.dev/pkg/client/injection/ducks/duck/v1/podspecable"
 
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
 	"knative.dev/pkg/apis/duck"
-	duckv1 "knative.dev/pkg/apis/duck/v1"
 	"knative.dev/pkg/configmap"
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/injection/clients/dynamicclient"
@@ -54,24 +52,13 @@ func NewController(
 
 	fbInformer := fbinformer.Get(ctx)
 	dc := dynamicclient.Get(ctx)
-
-	// TODO(mattmoor): Share these across bindings?  It would miss the initial informer sync...
-	psInformerFactory := &duck.TypedInformerFactory{
-		Client:       dc,
-		Type:         &duckv1.WithPod{},
-		ResyncPeriod: controller.GetResyncPeriod(ctx),
-		StopChannel:  ctx.Done(),
-	}
+	psInformerFactory := podspecable.Get(ctx)
 
 	c := &Reconciler{
-		Base: reconciler.Base{
+		BaseReconciler: psbinding.BaseReconciler{
 			GVR: v1alpha1.SchemeGroupVersion.WithResource("twitterbindings"),
-			Get: func(namespace string, name string) (*unstructured.Unstructured, error) {
-				obj, err := fbInformer.Lister().TwitterBindings(namespace).Get(name)
-				if err != nil {
-					return nil, err
-				}
-				return duck.ToUnstructured(obj)
+			Get: func(namespace string, name string) (duck.OneOfOurs, error) {
+				return fbInformer.Lister().TwitterBindings(namespace).Get(name)
 			},
 			DynamicClient: dc,
 			Recorder: record.NewBroadcaster().NewRecorder(
