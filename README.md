@@ -152,8 +152,10 @@ client, err := twitter.NewUserClient(ctx)
 
 ## `GoogleCloudSQLBinding`
 
-The `GoogleCloudSQLBinding` is intended to facilitate the consumption of the GitHub API.
-It has the following form:
+The `GoogleCloudSQLBinding` is intended to facilitate the consumption of Google
+Cloud SQL instances via
+[the proxy](https://github.com/GoogleCloudPlatform/cloudsql-proxy) without
+manually configuring it.  It has the following form:
 
 ```yaml
 apiVersion: bindings.mattmoor.dev/v1alpha1
