@@ -37,4 +37,18 @@ spec:
   secret:
     name: twitter-secret
 ---
+apiVersion: bindings.mattmoor.dev/v1alpha1
+kind: GoogleCloudSQLBinding
+metadata:
+  name: bind-deploy
+spec:
+  subject:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: debug
+
+  instance: mattmoor-knative:us-central1:binding-test
+  secret:
+    name: google-cloudsql-secret
+---
 # kubectl run debug --image=gcr.io/mattmoor-knative/curl sleep 3600

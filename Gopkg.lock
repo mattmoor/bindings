@@ -142,6 +142,14 @@
   version = "v4.2.0"
 
 [[projects]]
+  digest = "1:13e9a236e56e18fecb73f5b2f2eb7f60060a1a9bc27e5a7328ab22e275ecb63e"
+  name = "github.com/go-sql-driver/mysql"
+  packages = ["."]
+  pruneopts = "NUT"
+  revision = "72cd26f257d44c1114970e19afddcd812016007e"
+  version = "v1.4.1"
+
+[[projects]]
   digest = "1:fcd8ddc48ce648d5fbb36029fe3dd98f29c03377eea5c4a3c436701b0e3f2774"
   name = "github.com/gobuffalo/envy"
   packages = ["."]
@@ -638,10 +646,11 @@
   revision = "874d9dc5b186e361475b082852f136f094555c30"
 
 [[projects]]
-  digest = "1:898bf528e5c601c4a1111586f75ab9515467ebe7a41ae849d5a839720d4e2580"
+  digest = "1:5bbe7e91e4d1bb35f8096cef5a34d6949ff30ce0031428928776322aa04fc74e"
   name = "google.golang.org/appengine"
   packages = [
     ".",
+    "cloudsql",
     "internal",
     "internal/app_identity",
     "internal/base",
@@ -1063,7 +1072,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:a7656a139fcee8c206e8261cc28bbcf2c8f75f7691f3625b2fedcb5544b3590c"
+  digest = "1:bcb478b77fb59d3544df5006027f725d7c081cf4b47bf064d70cb7e5baf3b934"
   name = "knative.dev/pkg"
   packages = [
     "apis",
@@ -1072,6 +1081,7 @@
     "apis/duck/v1alpha1",
     "apis/duck/v1beta1",
     "changeset",
+    "client/injection/ducks/duck/v1/podspecable",
     "client/injection/kube/client",
     "client/injection/kube/informers/admissionregistration/v1beta1/mutatingwebhookconfiguration",
     "client/injection/kube/informers/admissionregistration/v1beta1/validatingwebhookconfiguration",
@@ -1101,12 +1111,13 @@
     "webhook/certificates",
     "webhook/certificates/resources",
     "webhook/configmaps",
+    "webhook/psbinding",
     "webhook/resourcesemantics",
     "webhook/resourcesemantics/defaulting",
     "webhook/resourcesemantics/validation",
   ]
   pruneopts = "T"
-  revision = "9f41433241f31dc9e7d45f69e7412ae665e0bedb"
+  revision = "891c2876dd3de4c88a1126e49c2ad920eedf0212"
 
 [[projects]]
   branch = "master"
@@ -1133,38 +1144,24 @@
   input-imports = [
     "github.com/dghubble/go-twitter/twitter",
     "github.com/dghubble/oauth1",
+    "github.com/go-sql-driver/mysql",
     "github.com/google/go-github/github",
-    "github.com/markbates/inflect",
     "github.com/nlopes/slack",
-    "github.com/pkg/errors",
-    "go.uber.org/zap",
     "golang.org/x/oauth2",
     "golang.org/x/oauth2/clientcredentials",
-    "golang.org/x/sync/errgroup",
-    "k8s.io/api/admission/v1beta1",
-    "k8s.io/api/admissionregistration/v1beta1",
-    "k8s.io/api/apps/v1",
-    "k8s.io/api/batch/v1",
     "k8s.io/api/core/v1",
-    "k8s.io/apimachinery/pkg/api/equality",
     "k8s.io/apimachinery/pkg/api/errors",
     "k8s.io/apimachinery/pkg/apis/meta/v1",
-    "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured",
     "k8s.io/apimachinery/pkg/labels",
     "k8s.io/apimachinery/pkg/runtime",
     "k8s.io/apimachinery/pkg/runtime/schema",
     "k8s.io/apimachinery/pkg/runtime/serializer",
     "k8s.io/apimachinery/pkg/types",
     "k8s.io/apimachinery/pkg/util/runtime",
-    "k8s.io/apimachinery/pkg/util/sets",
     "k8s.io/apimachinery/pkg/watch",
     "k8s.io/client-go/discovery",
     "k8s.io/client-go/discovery/fake",
-    "k8s.io/client-go/dynamic",
-    "k8s.io/client-go/kubernetes",
     "k8s.io/client-go/kubernetes/scheme",
-    "k8s.io/client-go/listers/admissionregistration/v1beta1",
-    "k8s.io/client-go/listers/core/v1",
     "k8s.io/client-go/rest",
     "k8s.io/client-go/testing",
     "k8s.io/client-go/tools/cache",
@@ -1180,9 +1177,7 @@
     "knative.dev/pkg/apis/duck/v1",
     "knative.dev/pkg/apis/duck/v1alpha1",
     "knative.dev/pkg/apis/duck/v1beta1",
-    "knative.dev/pkg/client/injection/kube/client",
-    "knative.dev/pkg/client/injection/kube/informers/admissionregistration/v1beta1/mutatingwebhookconfiguration",
-    "knative.dev/pkg/client/injection/kube/informers/core/v1/secret",
+    "knative.dev/pkg/client/injection/ducks/duck/v1/podspecable",
     "knative.dev/pkg/codegen/cmd/injection-gen",
     "knative.dev/pkg/configmap",
     "knative.dev/pkg/controller",
@@ -1190,17 +1185,14 @@
     "knative.dev/pkg/injection/clients/dynamicclient",
     "knative.dev/pkg/injection/sharedmain",
     "knative.dev/pkg/kmeta",
-    "knative.dev/pkg/kmp",
     "knative.dev/pkg/logging",
     "knative.dev/pkg/metrics",
-    "knative.dev/pkg/ptr",
     "knative.dev/pkg/signals",
-    "knative.dev/pkg/system",
     "knative.dev/pkg/tracker",
     "knative.dev/pkg/webhook",
     "knative.dev/pkg/webhook/certificates",
-    "knative.dev/pkg/webhook/certificates/resources",
     "knative.dev/pkg/webhook/configmaps",
+    "knative.dev/pkg/webhook/psbinding",
     "knative.dev/pkg/webhook/resourcesemantics",
     "knative.dev/pkg/webhook/resourcesemantics/defaulting",
     "knative.dev/pkg/webhook/resourcesemantics/validation",

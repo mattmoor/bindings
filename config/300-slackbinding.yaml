@@ -19,6 +19,7 @@ metadata:
   labels:
     bindings.mattmoor.dev/release: devel
     mattmoor.dev/crd-install: "true"
+    duck.knative.dev/binding: "true"
 spec:
   group: bindings.mattmoor.dev
   version: v1alpha1

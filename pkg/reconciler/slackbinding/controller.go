@@ -33,9 +33,9 @@ import (
 	"knative.dev/pkg/injection/clients/dynamicclient"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/tracker"
+	"knative.dev/pkg/webhook/psbinding"
 
 	"github.com/mattmoor/bindings/pkg/apis/bindings/v1alpha1"
-	"github.com/mattmoor/bindings/pkg/webhook/psbinding"
 )
 
 const (

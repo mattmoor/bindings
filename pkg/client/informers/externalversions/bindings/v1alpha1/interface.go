@@ -26,6 +26,8 @@ import (
 type Interface interface {
 	// GithubBindings returns a GithubBindingInformer.
 	GithubBindings() GithubBindingInformer
+	// GoogleCloudSQLBindings returns a GoogleCloudSQLBindingInformer.
+	GoogleCloudSQLBindings() GoogleCloudSQLBindingInformer
 	// SlackBindings returns a SlackBindingInformer.
 	SlackBindings() SlackBindingInformer
 	// TwitterBindings returns a TwitterBindingInformer.
@@ -46,6 +48,11 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 // GithubBindings returns a GithubBindingInformer.
 func (v *version) GithubBindings() GithubBindingInformer {
 	return &githubBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
+}
+
+// GoogleCloudSQLBindings returns a GoogleCloudSQLBindingInformer.
+func (v *version) GoogleCloudSQLBindings() GoogleCloudSQLBindingInformer {
+	return &googleCloudSQLBindingInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
 // SlackBindings returns a SlackBindingInformer.

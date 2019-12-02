@@ -104,6 +104,32 @@ var (
 	_ kmeta.OwnerRefable = (*TwitterBinding)(nil)
 )
 
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// GoogleCloudSQLBinding is a Knative-style Binding for injecting GoogleCloudSQL credentials
+// compatible with ./pkg/github into any Kubernetes resource with a Pod Spec.
+type GoogleCloudSQLBinding struct {
+	metav1.TypeMeta `json:",inline"`
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Spec holds the desired state of the GoogleCloudSQLBinding (from the client).
+	// +optional
+	Spec GoogleCloudSQLBindingSpec `json:"spec,omitempty"`
+
+	// Status communicates the observed state of the GoogleCloudSQLBinding (from the controller).
+	// +optional
+	Status GoogleCloudSQLBindingStatus `json:"status,omitempty"`
+}
+
+var (
+	// Check that GoogleCloudSQLBinding can be validated and defaulted.
+	_ apis.Validatable   = (*GoogleCloudSQLBinding)(nil)
+	_ apis.Defaultable   = (*GoogleCloudSQLBinding)(nil)
+	_ kmeta.OwnerRefable = (*GoogleCloudSQLBinding)(nil)
+)
+
 // GithubBindingSpec holds the desired state of the GithubBinding (from the client).
 type GithubBindingSpec struct {
 	// Subject holds a reference to the "pod speccable" Kubernetes resource which will
@@ -149,6 +175,24 @@ type TwitterBindingStatus struct {
 	duckv1beta1.Status `json:",inline"`
 }
 
+// GoogleCloudSQLBindingSpec holds the desired state of the GoogleCloudSQLBinding (from the client).
+type GoogleCloudSQLBindingSpec struct {
+	// Subject holds a reference to the "pod speccable" Kubernetes resource which will
+	// be bound with GoogleCloudSQL secret data.
+	Subject tracker.Reference `json:"subject"`
+
+	// Secret holds a reference to a secret containing the CloudSQL auth data.
+	Secret corev1.LocalObjectReference `json:"secret"`
+
+	// Instance holds the name of the Cloud SQL instance to which the sidecar can connect.
+	Instance string `json:"instance"`
+}
+
+// GoogleCloudSQLBindingStatus communicates the observed state of the GoogleCloudSQLBinding (from the controller).
+type GoogleCloudSQLBindingStatus struct {
+	duckv1beta1.Status `json:",inline"`
+}
+
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // GithubBindingList is a list of GithubBinding resources
@@ -177,4 +221,14 @@ type TwitterBindingList struct {
 	metav1.ListMeta `json:"metadata"`
 
 	Items []TwitterBinding `json:"items"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// GoogleCloudSQLBindingList is a list of GoogleCloudSQLBinding resources
+type GoogleCloudSQLBindingList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []GoogleCloudSQLBinding `json:"items"`
 }

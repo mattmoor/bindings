@@ -31,21 +31,23 @@ import (
 	"knative.dev/pkg/webhook"
 	"knative.dev/pkg/webhook/certificates"
 	"knative.dev/pkg/webhook/configmaps"
+	"knative.dev/pkg/webhook/psbinding"
 	"knative.dev/pkg/webhook/resourcesemantics"
 	"knative.dev/pkg/webhook/resourcesemantics/defaulting"
 	"knative.dev/pkg/webhook/resourcesemantics/validation"
 
 	"github.com/mattmoor/bindings/pkg/apis/bindings/v1alpha1"
+	"github.com/mattmoor/bindings/pkg/reconciler/cloudsqlbinding"
 	"github.com/mattmoor/bindings/pkg/reconciler/githubbinding"
 	"github.com/mattmoor/bindings/pkg/reconciler/slackbinding"
 	"github.com/mattmoor/bindings/pkg/reconciler/twitterbinding"
-	"github.com/mattmoor/bindings/pkg/webhook/psbinding"
 )
 
 var types = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
-	v1alpha1.SchemeGroupVersion.WithKind("GithubBinding"):  &v1alpha1.GithubBinding{},
-	v1alpha1.SchemeGroupVersion.WithKind("SlackBinding"):   &v1alpha1.SlackBinding{},
-	v1alpha1.SchemeGroupVersion.WithKind("TwitterBinding"): &v1alpha1.TwitterBinding{},
+	v1alpha1.SchemeGroupVersion.WithKind("GithubBinding"):         &v1alpha1.GithubBinding{},
+	v1alpha1.SchemeGroupVersion.WithKind("GoogleCloudSQLBinding"): &v1alpha1.GoogleCloudSQLBinding{},
+	v1alpha1.SchemeGroupVersion.WithKind("SlackBinding"):          &v1alpha1.SlackBinding{},
+	v1alpha1.SchemeGroupVersion.WithKind("TwitterBinding"):        &v1alpha1.TwitterBinding{},
 }
 
 func NewDefaultingAdmissionController(ctx context.Context, cmw configmap.Watcher) *controller.Impl {
@@ -133,8 +135,8 @@ func main() {
 		SecretName:  "webhook-certs",
 	})
 
-	nop := func(ctx context.Context, b psbinding.Bindable) context.Context {
-		return ctx
+	nop := func(ctx context.Context, b psbinding.Bindable) (context.Context, error) {
+		return ctx, nil
 	}
 
 	sharedmain.MainWithContext(ctx, "webhook",
@@ -144,11 +146,12 @@ func main() {
 		// Our singleton webhook admission controllers
 		NewDefaultingAdmissionController,
 		NewValidationAdmissionController,
-		// TODO(mattmoor): Support config validation
+		NewConfigValidationController,
 
 		// For each binding we have a controller and a binding webhook.
 		githubbinding.NewController, NewBindingWebhook("githubbindings", githubbinding.ListAll, nop),
 		slackbinding.NewController, NewBindingWebhook("slackbindings", slackbinding.ListAll, nop),
 		twitterbinding.NewController, NewBindingWebhook("twitterbindings", twitterbinding.ListAll, nop),
+		cloudsqlbinding.NewController, NewBindingWebhook("googlecloudsqlbindings", cloudsqlbinding.ListAll, nop),
 	)
 }

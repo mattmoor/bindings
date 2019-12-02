@@ -149,3 +149,48 @@ client, err := twitter.NewUserClient(ctx)
 ...
 
 ```
+
+## `GoogleCloudSQLBinding`
+
+The `GoogleCloudSQLBinding` is intended to facilitate the consumption of the GitHub API.
+It has the following form:
+
+```yaml
+apiVersion: bindings.mattmoor.dev/v1alpha1
+kind: GoogleCloudSQLBinding
+metadata:
+  name: foo-binding
+spec:
+  subject:
+    apiVersion: apps/v1
+    kind: Deployment
+    # Either name or selector may be specified.
+    selector:
+      matchLabels:
+        foo: bar
+
+  secret:
+    name: github-secret
+
+  instance: "project:region:name"
+```
+
+The referenced secret should have three parts:
+1. `credentials.json`: the JSON Key with the Cloud SQL "Client" IAM role.
+2. `username`: the database username to use when connecting.
+3. `password`: the database password to use when connecting.
+
+These keys are made available under `/var/bindings/cloudsql/secrets/`, and a unix
+socket to the instance if made available under `/var/bindings/cloudsql/sockets/`.
+
+There is a helper library available to facilitate consumption a `database/sql.DB`:
+
+```go
+
+import "github.com/mattmoor/bindings/pkg/cloudsql"
+
+// Open a connection to the named database.
+db, err := cloudsql.Open(ctx, "DATABASE NAME")
+...
+
+```

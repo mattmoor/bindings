@@ -27,6 +27,7 @@ import (
 type BindingsV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	GithubBindingsGetter
+	GoogleCloudSQLBindingsGetter
 	SlackBindingsGetter
 	TwitterBindingsGetter
 }
@@ -38,6 +39,10 @@ type BindingsV1alpha1Client struct {
 
 func (c *BindingsV1alpha1Client) GithubBindings(namespace string) GithubBindingInterface {
 	return newGithubBindings(c, namespace)
+}
+
+func (c *BindingsV1alpha1Client) GoogleCloudSQLBindings(namespace string) GoogleCloudSQLBindingInterface {
+	return newGoogleCloudSQLBindings(c, namespace)
 }
 
 func (c *BindingsV1alpha1Client) SlackBindings(namespace string) SlackBindingInterface {

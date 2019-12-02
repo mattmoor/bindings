@@ -32,6 +32,10 @@ func (c *FakeBindingsV1alpha1) GithubBindings(namespace string) v1alpha1.GithubB
 	return &FakeGithubBindings{c, namespace}
 }
 
+func (c *FakeBindingsV1alpha1) GoogleCloudSQLBindings(namespace string) v1alpha1.GoogleCloudSQLBindingInterface {
+	return &FakeGoogleCloudSQLBindings{c, namespace}
+}
+
 func (c *FakeBindingsV1alpha1) SlackBindings(namespace string) v1alpha1.SlackBindingInterface {
 	return &FakeSlackBindings{c, namespace}
 }

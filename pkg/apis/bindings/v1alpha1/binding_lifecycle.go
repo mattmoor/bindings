@@ -18,17 +18,19 @@ package v1alpha1
 
 import (
 	"context"
+	"fmt"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"knative.dev/pkg/apis"
+	"knative.dev/pkg/apis/duck"
 	duckv1 "knative.dev/pkg/apis/duck/v1"
 	"knative.dev/pkg/tracker"
 
+	"github.com/mattmoor/bindings/pkg/cloudsql"
 	"github.com/mattmoor/bindings/pkg/github"
 	"github.com/mattmoor/bindings/pkg/slack"
 	"github.com/mattmoor/bindings/pkg/twitter"
-	"github.com/mattmoor/bindings/pkg/webhook/psbinding"
 )
 
 const (
@@ -49,7 +51,7 @@ func (fb *GithubBinding) GetSubject() tracker.Reference {
 }
 
 // GetBindingStatus implements Bindable
-func (fb *GithubBinding) GetBindingStatus() psbinding.BindableStatus {
+func (fb *GithubBinding) GetBindingStatus() duck.BindableStatus {
 	return &fb.Status
 }
 
@@ -115,17 +117,17 @@ func (fb *GithubBinding) Undo(ctx context.Context, ps *duckv1.WithPod) {
 
 	// Make sure that none of the [init]containers have the github volume mount
 	for i, c := range spec.InitContainers {
-		for j, ev := range c.VolumeMounts {
-			if ev.Name == github.VolumeName {
-				spec.InitContainers[i].VolumeMounts = append(spec.InitContainers[i].VolumeMounts[:j], spec.InitContainers[i].VolumeMounts[j+1:]...)
+		for j, vm := range c.VolumeMounts {
+			if vm.Name == github.VolumeName {
+				spec.InitContainers[i].VolumeMounts = append(c.VolumeMounts[:j], c.VolumeMounts[j+1:]...)
 				break
 			}
 		}
 	}
 	for i, c := range spec.Containers {
-		for j, ev := range c.VolumeMounts {
-			if ev.Name == github.VolumeName {
-				spec.Containers[i].VolumeMounts = append(spec.Containers[i].VolumeMounts[:j], spec.Containers[i].VolumeMounts[j+1:]...)
+		for j, vm := range c.VolumeMounts {
+			if vm.Name == github.VolumeName {
+				spec.Containers[i].VolumeMounts = append(c.VolumeMounts[:j], c.VolumeMounts[j+1:]...)
 				break
 			}
 		}
@@ -150,7 +152,7 @@ func (fb *SlackBinding) GetSubject() tracker.Reference {
 }
 
 // GetBindingStatus implements Bindable
-func (fb *SlackBinding) GetBindingStatus() psbinding.BindableStatus {
+func (fb *SlackBinding) GetBindingStatus() duck.BindableStatus {
 	return &fb.Status
 }
 
@@ -251,7 +253,7 @@ func (fb *TwitterBinding) GetSubject() tracker.Reference {
 }
 
 // GetBindingStatus implements Bindable
-func (fb *TwitterBinding) GetBindingStatus() psbinding.BindableStatus {
+func (fb *TwitterBinding) GetBindingStatus() duck.BindableStatus {
 	return &fb.Status
 }
 
@@ -331,5 +333,128 @@ func (fb *TwitterBinding) Undo(ctx context.Context, ps *duckv1.WithPod) {
 				break
 			}
 		}
+	}
+}
+
+const (
+	// GoogleCloudSQLBindingConditionReady is set when the binding has been applied to the subjects.
+	GoogleCloudSQLBindingConditionReady = apis.ConditionReady
+)
+
+var sqlCondSet = apis.NewLivingConditionSet()
+
+// GetGroupVersionKind implements kmeta.OwnerRefable
+func (fb *GoogleCloudSQLBinding) GetGroupVersionKind() schema.GroupVersionKind {
+	return SchemeGroupVersion.WithKind("GoogleCloudSQLBinding")
+}
+
+// GetSubject implements Bindable
+func (fb *GoogleCloudSQLBinding) GetSubject() tracker.Reference {
+	return fb.Spec.Subject
+}
+
+// GetBindingStatus implements Bindable
+func (fb *GoogleCloudSQLBinding) GetBindingStatus() duck.BindableStatus {
+	return &fb.Status
+}
+
+// SetObservedGeneration implements BindableStatus
+func (fbs *GoogleCloudSQLBindingStatus) SetObservedGeneration(gen int64) {
+	fbs.ObservedGeneration = gen
+}
+
+func (fbs *GoogleCloudSQLBindingStatus) InitializeConditions() {
+	sqlCondSet.Manage(fbs).InitializeConditions()
+}
+
+func (fbs *GoogleCloudSQLBindingStatus) MarkBindingUnavailable(reason, message string) {
+	sqlCondSet.Manage(fbs).MarkFalse(
+		GoogleCloudSQLBindingConditionReady, reason, message)
+}
+
+func (fbs *GoogleCloudSQLBindingStatus) MarkBindingAvailable() {
+	sqlCondSet.Manage(fbs).MarkTrue(GoogleCloudSQLBindingConditionReady)
+}
+
+func (fb *GoogleCloudSQLBinding) Do(ctx context.Context, ps *duckv1.WithPod) {
+	// First undo so that we can just unconditionally append below.
+	fb.Undo(ctx, ps)
+
+	c := corev1.Container{
+		Name:  cloudsql.ContainerName,
+		Image: "gcr.io/cloudsql-docker/gce-proxy:1.14",
+		Command: []string{
+			"/cloud_sql_proxy",
+			"-dir=" + cloudsql.SocketMountPath,
+			fmt.Sprintf("-instances=%s,%s=tcp:3306", fb.Spec.Instance, fb.Spec.Instance),
+			// If running on a VPC, the Cloud SQL proxy can connect via Private IP. See:
+			// https://cloud.google.com/sql/docs/mysql/private-ip for more info.
+			// "-ip_address_types=PRIVATE",
+			fmt.Sprintf("-credential_file=%s/credentials.json", cloudsql.SecretMountPath),
+		},
+		VolumeMounts: []corev1.VolumeMount{{
+			Name:      cloudsql.SecretVolumeName,
+			ReadOnly:  true,
+			MountPath: cloudsql.SecretMountPath,
+		}, {
+			Name:      cloudsql.SocketVolumeName,
+			MountPath: cloudsql.SocketMountPath,
+		}},
+	}
+
+	v := []corev1.Volume{{
+		Name: cloudsql.SecretVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: fb.Spec.Secret.Name,
+			},
+		},
+	}, {
+		Name: cloudsql.SocketVolumeName,
+		VolumeSource: corev1.VolumeSource{
+			EmptyDir: &corev1.EmptyDirVolumeSource{},
+		},
+	}}
+
+	spec := ps.Spec.Template.Spec
+	for i := range spec.Containers {
+		spec.Containers[i].VolumeMounts = append(spec.Containers[i].VolumeMounts, c.VolumeMounts...)
+	}
+
+	ps.Spec.Template.Spec.Containers = append(ps.Spec.Template.Spec.Containers, c)
+	ps.Spec.Template.Spec.Volumes = append(ps.Spec.Template.Spec.Volumes, v...)
+}
+
+func (fb *GoogleCloudSQLBinding) Undo(ctx context.Context, ps *duckv1.WithPod) {
+	spec := ps.Spec.Template.Spec
+
+	// Make sure the PodSpec does NOT have the cloudsql container.
+	for i, v := range spec.Containers {
+		if v.Name == cloudsql.ContainerName {
+			ps.Spec.Template.Spec.Containers = append(spec.Containers[:i], spec.Containers[i+1:]...)
+			break
+		}
+	}
+
+	// Make sure the PodSpec does NOT have the cloudsql volumes.
+	vs := make([]corev1.Volume, 0, len(spec.Volumes))
+	for _, v := range spec.Volumes {
+		if v.Name == cloudsql.SecretVolumeName || v.Name == cloudsql.SocketVolumeName {
+			continue
+		}
+		vs = append(vs, v)
+	}
+	ps.Spec.Template.Spec.Volumes = vs
+
+	// Make sure that none of the containers have the cloudsql socket volume mount
+	for i, c := range spec.Containers {
+		vms := make([]corev1.VolumeMount, 0, len(c.VolumeMounts))
+		for _, vm := range c.VolumeMounts {
+			if vm.Name == cloudsql.SecretVolumeName || vm.Name == cloudsql.SocketVolumeName {
+				continue
+			}
+			vms = append(vms, vm)
+		}
+		spec.Containers[i].VolumeMounts = vms
 	}
 }

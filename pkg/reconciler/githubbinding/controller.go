@@ -19,7 +19,7 @@ package githubbinding
 import (
 	"context"
 
-	fbinformer "github.com/mattmoor/bindings/pkg/client/injection/informers/bindings/v1alpha1/githubbinding"
+	ghinformer "github.com/mattmoor/bindings/pkg/client/injection/informers/bindings/v1alpha1/githubbinding"
 	"knative.dev/pkg/client/injection/ducks/duck/v1/podspecable"
 
 	corev1 "k8s.io/api/core/v1"
@@ -33,9 +33,9 @@ import (
 	"knative.dev/pkg/injection/clients/dynamicclient"
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/tracker"
+	"knative.dev/pkg/webhook/psbinding"
 
 	"github.com/mattmoor/bindings/pkg/apis/bindings/v1alpha1"
-	"github.com/mattmoor/bindings/pkg/webhook/psbinding"
 )
 
 const (
@@ -49,14 +49,14 @@ func NewController(
 ) *controller.Impl {
 	logger := logging.FromContext(ctx)
 
-	fbInformer := fbinformer.Get(ctx)
+	ghInformer := ghinformer.Get(ctx)
 	dc := dynamicclient.Get(ctx)
 	psInformerFactory := podspecable.Get(ctx)
 
 	c := &psbinding.BaseReconciler{
 		GVR: v1alpha1.SchemeGroupVersion.WithResource("githubbindings"),
 		Get: func(namespace string, name string) (psbinding.Bindable, error) {
-			return fbInformer.Lister().GithubBindings(namespace).Get(name)
+			return ghInformer.Lister().GithubBindings(namespace).Get(name)
 		},
 		DynamicClient: dc,
 		Recorder: record.NewBroadcaster().NewRecorder(
@@ -66,7 +66,7 @@ func NewController(
 
 	logger.Info("Setting up event handlers")
 
-	fbInformer.Informer().AddEventHandler(controller.HandleAll(impl.Enqueue))
+	ghInformer.Informer().AddEventHandler(controller.HandleAll(impl.Enqueue))
 
 	c.Tracker = tracker.New(impl.EnqueueKey, controller.GetTrackerLease(ctx))
 	c.Factory = &duck.CachedInformerFactory{
@@ -80,13 +80,13 @@ func NewController(
 }
 
 func ListAll(ctx context.Context, handler cache.ResourceEventHandler) psbinding.ListAll {
-	fbInformer := fbinformer.Get(ctx)
+	ghInformer := ghinformer.Get(ctx)
 
 	// Whenever a GithubBinding changes our webhook programming might change.
-	fbInformer.Informer().AddEventHandler(handler)
+	ghInformer.Informer().AddEventHandler(handler)
 
 	return func() ([]psbinding.Bindable, error) {
-		l, err := fbInformer.Lister().List(labels.Everything())
+		l, err := ghInformer.Lister().List(labels.Everything())
 		if err != nil {
 			return nil, err
 		}
@@ -96,5 +96,4 @@ func ListAll(ctx context.Context, handler cache.ResourceEventHandler) psbinding.
 		}
 		return bl, nil
 	}
-
 }

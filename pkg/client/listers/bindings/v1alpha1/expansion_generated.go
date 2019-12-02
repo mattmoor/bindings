@@ -26,6 +26,14 @@ type GithubBindingListerExpansion interface{}
 // GithubBindingNamespaceLister.
 type GithubBindingNamespaceListerExpansion interface{}
 
+// GoogleCloudSQLBindingListerExpansion allows custom methods to be added to
+// GoogleCloudSQLBindingLister.
+type GoogleCloudSQLBindingListerExpansion interface{}
+
+// GoogleCloudSQLBindingNamespaceListerExpansion allows custom methods to be added to
+// GoogleCloudSQLBindingNamespaceLister.
+type GoogleCloudSQLBindingNamespaceListerExpansion interface{}
+
 // SlackBindingListerExpansion allows custom methods to be added to
 // SlackBindingLister.
 type SlackBindingListerExpansion interface{}
