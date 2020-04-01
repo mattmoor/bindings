@@ -21,7 +21,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/apis"
-	duckv1beta1 "knative.dev/pkg/apis/duck/v1beta1"
+	duckv1 "knative.dev/pkg/apis/duck/v1"
 	"knative.dev/pkg/kmeta"
 	"knative.dev/pkg/tracker"
 )
@@ -130,6 +130,32 @@ var (
 	_ kmeta.OwnerRefable = (*GoogleCloudSQLBinding)(nil)
 )
 
+// +genclient
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// SQLBinding is a Knative-style Binding for injecting GoogleCloudSQL credentials
+// compatible with ./pkg/github into any Kubernetes resource with a Pod Spec.
+type SQLBinding struct {
+	metav1.TypeMeta `json:",inline"`
+	// +optional
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	// Spec holds the desired state of the SQLBinding (from the client).
+	// +optional
+	Spec SQLBindingSpec `json:"spec,omitempty"`
+
+	// Status communicates the observed state of the SQLBinding (from the controller).
+	// +optional
+	Status SQLBindingStatus `json:"status,omitempty"`
+}
+
+var (
+	// Check that SQLBinding can be validated and defaulted.
+	_ apis.Validatable   = (*SQLBinding)(nil)
+	_ apis.Defaultable   = (*SQLBinding)(nil)
+	_ kmeta.OwnerRefable = (*SQLBinding)(nil)
+)
+
 // GithubBindingSpec holds the desired state of the GithubBinding (from the client).
 type GithubBindingSpec struct {
 	// Subject holds a reference to the "pod speccable" Kubernetes resource which will
@@ -142,7 +168,7 @@ type GithubBindingSpec struct {
 
 // GithubBindingStatus communicates the observed state of the GithubBinding (from the controller).
 type GithubBindingStatus struct {
-	duckv1beta1.Status `json:",inline"`
+	duckv1.Status `json:",inline"`
 }
 
 // SlackBindingSpec holds the desired state of the SlackBinding (from the client).
@@ -157,7 +183,7 @@ type SlackBindingSpec struct {
 
 // SlackBindingStatus communicates the observed state of the SlackBinding (from the controller).
 type SlackBindingStatus struct {
-	duckv1beta1.Status `json:",inline"`
+	duckv1.Status `json:",inline"`
 }
 
 // TwitterBindingSpec holds the desired state of the TwitterBinding (from the client).
@@ -172,7 +198,7 @@ type TwitterBindingSpec struct {
 
 // TwitterBindingStatus communicates the observed state of the TwitterBinding (from the controller).
 type TwitterBindingStatus struct {
-	duckv1beta1.Status `json:",inline"`
+	duckv1.Status `json:",inline"`
 }
 
 // GoogleCloudSQLBindingSpec holds the desired state of the GoogleCloudSQLBinding (from the client).
@@ -188,9 +214,27 @@ type GoogleCloudSQLBindingSpec struct {
 	Instance string `json:"instance"`
 }
 
+// SQLBindingSpec holds the desired state of the SQLBinding (from the client).
+type SQLBindingSpec struct {
+	// Subject holds a reference to the "pod speccable" Kubernetes resource which will
+	// be bound with SQL secret data.
+	Subject tracker.Reference `json:"subject"`
+
+	// Secret holds a reference to a secret containing the SQL auth data.
+	Secret corev1.LocalObjectReference `json:"secret"`
+
+	// Instance holds the name of the Cloud SQL instance to which the sidecar can connect.
+	Instance string `json:"instance"`
+}
+
 // GoogleCloudSQLBindingStatus communicates the observed state of the GoogleCloudSQLBinding (from the controller).
 type GoogleCloudSQLBindingStatus struct {
-	duckv1beta1.Status `json:",inline"`
+	duckv1.Status `json:",inline"`
+}
+
+// SQLBindingStatus communicates the observed state of the SQLBinding (from the controller).
+type SQLBindingStatus struct {
+	duckv1.Status `json:",inline"`
 }
 
 // +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
@@ -231,4 +275,14 @@ type GoogleCloudSQLBindingList struct {
 	metav1.ListMeta `json:"metadata"`
 
 	Items []GoogleCloudSQLBinding `json:"items"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
+// SQLBindingList is a list of SQLBinding resources
+type SQLBindingList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata"`
+
+	Items []SQLBinding `json:"items"`
 }

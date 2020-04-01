@@ -40,12 +40,14 @@ import (
 	"github.com/mattmoor/bindings/pkg/reconciler/cloudsqlbinding"
 	"github.com/mattmoor/bindings/pkg/reconciler/githubbinding"
 	"github.com/mattmoor/bindings/pkg/reconciler/slackbinding"
+	"github.com/mattmoor/bindings/pkg/reconciler/sqlbinding"
 	"github.com/mattmoor/bindings/pkg/reconciler/twitterbinding"
 )
 
 var types = map[schema.GroupVersionKind]resourcesemantics.GenericCRD{
 	v1alpha1.SchemeGroupVersion.WithKind("GithubBinding"):         &v1alpha1.GithubBinding{},
 	v1alpha1.SchemeGroupVersion.WithKind("GoogleCloudSQLBinding"): &v1alpha1.GoogleCloudSQLBinding{},
+	v1alpha1.SchemeGroupVersion.WithKind("SQLBinding"):            &v1alpha1.SQLBinding{},
 	v1alpha1.SchemeGroupVersion.WithKind("SlackBinding"):          &v1alpha1.SlackBinding{},
 	v1alpha1.SchemeGroupVersion.WithKind("TwitterBinding"):        &v1alpha1.TwitterBinding{},
 }
@@ -153,5 +155,6 @@ func main() {
 		slackbinding.NewController, NewBindingWebhook("slackbindings", slackbinding.ListAll, nop),
 		twitterbinding.NewController, NewBindingWebhook("twitterbindings", twitterbinding.ListAll, nop),
 		cloudsqlbinding.NewController, NewBindingWebhook("googlecloudsqlbindings", cloudsqlbinding.ListAll, nop),
+		sqlbinding.NewController, NewBindingWebhook("sqlbindings", sqlbinding.ListAll, nop),
 	)
 }

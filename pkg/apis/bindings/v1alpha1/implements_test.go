@@ -28,6 +28,8 @@ func TestImplementsPodScalable(t *testing.T) {
 		&GithubBinding{},
 		&SlackBinding{},
 		&TwitterBinding{},
+		&SQLBinding{},
+		&GoogleCloudSQLBinding{},
 	}
 	for _, instance := range instances {
 		if err := duck.VerifyType(instance, &duckv1alpha1.Binding{}); err != nil {

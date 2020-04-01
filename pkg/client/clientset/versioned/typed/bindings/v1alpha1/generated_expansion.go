@@ -22,6 +22,8 @@ type GithubBindingExpansion interface{}
 
 type GoogleCloudSQLBindingExpansion interface{}
 
+type SQLBindingExpansion interface{}
+
 type SlackBindingExpansion interface{}
 
 type TwitterBindingExpansion interface{}
