@@ -93,3 +93,18 @@ func (fbs *GoogleCloudSQLBindingSpec) Validate(ctx context.Context) *apis.FieldE
 	}
 	return err
 }
+
+// Validate implements apis.Validatable
+func (fb *SQLBinding) Validate(ctx context.Context) *apis.FieldError {
+	return fb.Spec.Validate(ctx).ViaField("spec")
+}
+
+// Validate implements apis.Validatable
+func (fbs *SQLBindingSpec) Validate(ctx context.Context) *apis.FieldError {
+	err := fbs.Subject.Validate(ctx).ViaField("subject")
+
+	if fbs.Secret.Name == "" {
+		err = err.Also(apis.ErrMissingField("name").ViaField("secret"))
+	}
+	return err
+}

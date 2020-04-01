@@ -28,6 +28,7 @@ type BindingsV1alpha1Interface interface {
 	RESTClient() rest.Interface
 	GithubBindingsGetter
 	GoogleCloudSQLBindingsGetter
+	SQLBindingsGetter
 	SlackBindingsGetter
 	TwitterBindingsGetter
 }
@@ -43,6 +44,10 @@ func (c *BindingsV1alpha1Client) GithubBindings(namespace string) GithubBindingI
 
 func (c *BindingsV1alpha1Client) GoogleCloudSQLBindings(namespace string) GoogleCloudSQLBindingInterface {
 	return newGoogleCloudSQLBindings(c, namespace)
+}
+
+func (c *BindingsV1alpha1Client) SQLBindings(namespace string) SQLBindingInterface {
+	return newSQLBindings(c, namespace)
 }
 
 func (c *BindingsV1alpha1Client) SlackBindings(namespace string) SlackBindingInterface {

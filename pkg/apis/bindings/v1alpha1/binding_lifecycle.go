@@ -30,6 +30,7 @@ import (
 	"github.com/mattmoor/bindings/pkg/cloudsql"
 	"github.com/mattmoor/bindings/pkg/github"
 	"github.com/mattmoor/bindings/pkg/slack"
+	"github.com/mattmoor/bindings/pkg/sql"
 	"github.com/mattmoor/bindings/pkg/twitter"
 )
 
@@ -341,7 +342,7 @@ const (
 	GoogleCloudSQLBindingConditionReady = apis.ConditionReady
 )
 
-var sqlCondSet = apis.NewLivingConditionSet()
+var gcSqlCondSet = apis.NewLivingConditionSet()
 
 // GetGroupVersionKind implements kmeta.OwnerRefable
 func (fb *GoogleCloudSQLBinding) GetGroupVersionKind() schema.GroupVersionKind {
@@ -364,16 +365,16 @@ func (fbs *GoogleCloudSQLBindingStatus) SetObservedGeneration(gen int64) {
 }
 
 func (fbs *GoogleCloudSQLBindingStatus) InitializeConditions() {
-	sqlCondSet.Manage(fbs).InitializeConditions()
+	gcSqlCondSet.Manage(fbs).InitializeConditions()
 }
 
 func (fbs *GoogleCloudSQLBindingStatus) MarkBindingUnavailable(reason, message string) {
-	sqlCondSet.Manage(fbs).MarkFalse(
+	gcSqlCondSet.Manage(fbs).MarkFalse(
 		GoogleCloudSQLBindingConditionReady, reason, message)
 }
 
 func (fbs *GoogleCloudSQLBindingStatus) MarkBindingAvailable() {
-	sqlCondSet.Manage(fbs).MarkTrue(GoogleCloudSQLBindingConditionReady)
+	gcSqlCondSet.Manage(fbs).MarkTrue(GoogleCloudSQLBindingConditionReady)
 }
 
 func (fb *GoogleCloudSQLBinding) Do(ctx context.Context, ps *duckv1.WithPod) {
@@ -457,4 +458,104 @@ func (fb *GoogleCloudSQLBinding) Undo(ctx context.Context, ps *duckv1.WithPod) {
 		}
 		spec.Containers[i].VolumeMounts = vms
 	}
+}
+
+const (
+	// SQLBindingConditionReady is set when the binding has been applied to the subjects.
+	SQLBindingConditionReady = apis.ConditionReady
+)
+
+var sqlCondSet = apis.NewLivingConditionSet()
+
+// GetGroupVersionKind implements kmeta.OwnerRefable
+func (fb *SQLBinding) GetGroupVersionKind() schema.GroupVersionKind {
+	return SchemeGroupVersion.WithKind("SQLBinding")
+}
+
+// GetSubject implements Bindable
+func (fb *SQLBinding) GetSubject() tracker.Reference {
+	return fb.Spec.Subject
+}
+
+// GetBindingStatus implements Bindable
+func (fb *SQLBinding) GetBindingStatus() duck.BindableStatus {
+	return &fb.Status
+}
+
+// SetObservedGeneration implements BindableStatus
+func (fbs *SQLBindingStatus) SetObservedGeneration(gen int64) {
+	fbs.ObservedGeneration = gen
+}
+
+func (fbs *SQLBindingStatus) InitializeConditions() {
+	sqlCondSet.Manage(fbs).InitializeConditions()
+}
+
+func (fbs *SQLBindingStatus) MarkBindingUnavailable(reason, message string) {
+	sqlCondSet.Manage(fbs).MarkFalse(SQLBindingConditionReady, reason, message)
+}
+
+func (fbs *SQLBindingStatus) MarkBindingAvailable() {
+	sqlCondSet.Manage(fbs).MarkTrue(SQLBindingConditionReady)
+}
+
+func (fb *SQLBinding) Do(ctx context.Context, ps *duckv1.WithPod) {
+	// First undo so that we can just unconditionally append below.
+	fb.Undo(ctx, ps)
+
+	// Make sure the PodSpec has a Volume like this:
+	volume := corev1.Volume{
+		Name: sql.VolumeName,
+		VolumeSource: corev1.VolumeSource{
+			Secret: &corev1.SecretVolumeSource{
+				SecretName: fb.Spec.Secret.Name,
+			},
+		},
+	}
+	ps.Spec.Template.Spec.Volumes = append(ps.Spec.Template.Spec.Volumes, volume)
+
+	// Make sure that each [init]container in the PodSpec has a VolumeMount like this:
+	volumeMount := corev1.VolumeMount{
+		Name:      sql.VolumeName,
+		ReadOnly:  true,
+		MountPath: sql.MountPath,
+	}
+	spec := ps.Spec.Template.Spec
+	for i := range spec.InitContainers {
+		spec.InitContainers[i].VolumeMounts = append(spec.InitContainers[i].VolumeMounts, volumeMount)
+	}
+	for i := range spec.Containers {
+		spec.Containers[i].VolumeMounts = append(spec.Containers[i].VolumeMounts, volumeMount)
+	}
+}
+
+func (fb *SQLBinding) Undo(ctx context.Context, ps *duckv1.WithPod) {
+	spec := ps.Spec.Template.Spec
+
+	// Make sure the PodSpec does NOT have the sql volume.
+	for i, v := range spec.Volumes {
+		if v.Name == sql.VolumeName {
+			ps.Spec.Template.Spec.Volumes = append(spec.Volumes[:i], spec.Volumes[i+1:]...)
+			break
+		}
+	}
+
+	// Make sure that none of the [init]containers have the sql volume mount
+	for i, c := range spec.InitContainers {
+		for j, ev := range c.VolumeMounts {
+			if ev.Name == sql.VolumeName {
+				spec.InitContainers[i].VolumeMounts = append(spec.InitContainers[i].VolumeMounts[:j], spec.InitContainers[i].VolumeMounts[j+1:]...)
+				break
+			}
+		}
+	}
+	for i, c := range spec.Containers {
+		for j, ev := range c.VolumeMounts {
+			if ev.Name == sql.VolumeName {
+				spec.Containers[i].VolumeMounts = append(spec.Containers[i].VolumeMounts[:j], spec.Containers[i].VolumeMounts[j+1:]...)
+				break
+			}
+		}
+	}
+
 }

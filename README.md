@@ -172,7 +172,7 @@ spec:
         foo: bar
 
   secret:
-    name: github-secret
+    name: cloudsql-secret
 
   instance: "project:region:name"
 ```
@@ -193,6 +193,55 @@ import "github.com/mattmoor/bindings/pkg/cloudsql"
 
 // Open a connection to the named database.
 db, err := cloudsql.Open(ctx, "DATABASE NAME")
+...
+
+```
+
+## `SQLBinding`
+
+The `SQLBinding` is intended to facilitate the consumption of SQL instances.
+
+```yaml
+apiVersion: bindings.mattmoor.dev/v1alpha1
+kind: SQLBinding
+metadata:
+  name: foo-binding
+spec:
+  subject:
+    apiVersion: apps/v1
+    kind: Deployment
+    # Either name or selector may be specified.
+    selector:
+      matchLabels:
+        foo: bar
+
+  secret:
+    name: sql-secret
+```
+
+The referenced secret should have the connection string in it:
+1. `connectionstr`: in the format expected by the golang SQL package. Omit the database.
+
+For example, to connect to postgres you would specify
+postgres://username:password@ip:port/
+
+postgres://myuser:mysupersecretpassword@127.0.0.1:5432/
+
+This key is made available under `/var/bindings/sql/secrets/`
+
+There is a helper library available to facilitate consumption a `database/sql.DB`:
+
+```go
+
+import (
+	"github.com/mattmoor/bindings/pkg/sql"
+
+	// Also import your database driver, for example for postgres:
+	_ "github.com/lib/pq"
+)
+
+// Open a connection to the named database.
+db, err := cloudsql.Open(ctx, "postgres", "DATABASENAME")
 ...
 
 ```

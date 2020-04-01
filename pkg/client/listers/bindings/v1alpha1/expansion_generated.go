@@ -34,6 +34,14 @@ type GoogleCloudSQLBindingListerExpansion interface{}
 // GoogleCloudSQLBindingNamespaceLister.
 type GoogleCloudSQLBindingNamespaceListerExpansion interface{}
 
+// SQLBindingListerExpansion allows custom methods to be added to
+// SQLBindingLister.
+type SQLBindingListerExpansion interface{}
+
+// SQLBindingNamespaceListerExpansion allows custom methods to be added to
+// SQLBindingNamespaceLister.
+type SQLBindingNamespaceListerExpansion interface{}
+
 // SlackBindingListerExpansion allows custom methods to be added to
 // SlackBindingLister.
 type SlackBindingListerExpansion interface{}
