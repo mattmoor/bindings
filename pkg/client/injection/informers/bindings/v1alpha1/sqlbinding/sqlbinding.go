@@ -19,7 +19,7 @@ limitations under the License.
 package sqlbinding
 
 import (
-	"context"
+	context "context"
 
 	v1alpha1 "github.com/mattmoor/bindings/pkg/client/informers/externalversions/bindings/v1alpha1"
 	factory "github.com/mattmoor/bindings/pkg/client/injection/informers/factory"

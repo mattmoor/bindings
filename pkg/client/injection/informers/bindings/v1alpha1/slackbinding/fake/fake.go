@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	"context"
+	context "context"
 
 	slackbinding "github.com/mattmoor/bindings/pkg/client/injection/informers/bindings/v1alpha1/slackbinding"
 	fake "github.com/mattmoor/bindings/pkg/client/injection/informers/factory/fake"

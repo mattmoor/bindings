@@ -19,7 +19,7 @@ limitations under the License.
 package factory
 
 import (
-	"context"
+	context "context"
 
 	externalversions "github.com/mattmoor/bindings/pkg/client/informers/externalversions"
 	client "github.com/mattmoor/bindings/pkg/client/injection/client"

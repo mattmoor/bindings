@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	corev1 "k8s.io/api/core/v1"
@@ -163,7 +162,7 @@ func (r *BaseReconciler) ReconcileDeletion(ctx context.Context, fb Bindable) err
 	// If it is our turn to finalize the Binding, then first undo the effect
 	// of our Binding on the resource.
 	logging.FromContext(ctx).Infof("Removing the binding for %s", fb.GetName())
-	if err := r.ReconcileSubject(ctx, fb, fb.Undo); apierrs.IsNotFound(err) {
+	if err := r.ReconcileSubject(ctx, fb, fb.Undo); apierrs.IsNotFound(err) || apierrs.IsForbidden(err) {
 		// If the subject has been deleted, then there is nothing to undo.
 	} else if err != nil {
 		return err
@@ -253,7 +252,9 @@ func (r *BaseReconciler) ReconcileSubject(ctx context.Context, fb Bindable, muta
 	// use to fetch our PodSpecable resources.
 	_, lister, err := r.Factory.Get(gvr)
 	if err != nil {
-		return fmt.Errorf("error getting a lister for resource '%+v': %v", gvr, err)
+		logging.FromContext(ctx).Errorf("Error getting a lister for resource '%+v': %v", gvr, err)
+		fb.GetBindingStatus().MarkBindingUnavailable("SubjectUnavailable", err.Error())
+		return err
 	}
 
 	// Based on the type of subject reference, build up a list of referents.
@@ -322,7 +323,7 @@ func (r *BaseReconciler) ReconcileSubject(ctx context.Context, fb Bindable, muta
 			_, err = r.DynamicClient.Resource(gvr).Namespace(ps.Namespace).Patch(
 				ps.Name, types.JSONPatchType, patchBytes, metav1.PatchOptions{})
 			if err != nil {
-				return errors.Wrap(err, "failed binding subject "+ps.Name)
+				return fmt.Errorf("failed binding subject %s: %w", ps.Name, err)
 			}
 			return nil
 		})

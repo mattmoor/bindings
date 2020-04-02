@@ -23,14 +23,26 @@ set -o pipefail
 
 cd ${ROOT_DIR}
 
+# The list of dependencies that we track at HEAD and periodically
+# float forward in this repository.
+FLOATING_DEPS=(
+  "knative.dev/test-infra"
+)
+
+# Parse flags to determine any we should pass to dep.
+DEP_FLAGS=()
+while [[ $# -ne 0 ]]; do
+  parameter=$1
+  case ${parameter} in
+    --upgrade) DEP_FLAGS=( -update ${FLOATING_DEPS[@]} ) ;;
+    *) abort "unknown option ${parameter}" ;;
+  esac
+  shift
+done
+readonly DEP_FLAGS
+
 # Ensure we have everything we need under vendor/
-dep ensure
+dep ensure ${DEP_FLAGS[@]}
 
 rm -rf $(find vendor/ -name 'OWNERS')
 rm -rf $(find vendor/ -name '*_test.go')
-
-# HACK HACK HACK
-# Currently istio.io/client-go apis are missing groupName comment tags and that
-# breaks our (and theirs for that matter) generated fake client sets.
-# TODO(skaslev): Remove after istio/tools#549 and istio/client-go#22 get merged.
-git apply ${REPO_ROOT_DIR}/hack/istio-client-missing-group-name.patch

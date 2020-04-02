@@ -48,6 +48,8 @@ var errMissingNewObject = errors.New("the new object may not be nil")
 
 // reconciler implements the AdmissionController for resources
 type reconciler struct {
+	webhook.StatelessAdmissionImpl
+
 	name     string
 	path     string
 	handlers map[schema.GroupVersionKind]resourcesemantics.GenericCRD
@@ -64,6 +66,7 @@ type reconciler struct {
 
 var _ controller.Reconciler = (*reconciler)(nil)
 var _ webhook.AdmissionController = (*reconciler)(nil)
+var _ webhook.StatelessAdmissionController = (*reconciler)(nil)
 
 // Reconcile implements controller.Reconciler
 func (ac *reconciler) Reconcile(ctx context.Context, key string) error {
@@ -223,8 +226,6 @@ func (ac *reconciler) validate(ctx context.Context, req *admissionv1beta1.Admiss
 
 	// Set up the context for defaulting and validation
 	if oldObj != nil {
-		// TODO(mattmoor): Remove this after 0.11 cuts.
-		oldObj.SetDefaults(ctx)
 		if req.SubResource == "" {
 			ctx = apis.WithinUpdate(ctx, oldObj)
 		} else {
@@ -239,9 +240,6 @@ func (ac *reconciler) validate(ctx context.Context, req *admissionv1beta1.Admiss
 	if newObj == nil {
 		return errMissingNewObject
 	}
-
-	// TODO(mattmoor): Remove this after 0.11 cuts.
-	newObj.SetDefaults(ctx)
 
 	if err := validate(ctx, newObj); err != nil {
 		logger.Errorw("Failed the resource specific validation", zap.Error(err))

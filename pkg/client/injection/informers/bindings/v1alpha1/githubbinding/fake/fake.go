@@ -19,7 +19,7 @@ limitations under the License.
 package fake
 
 import (
-	"context"
+	context "context"
 
 	githubbinding "github.com/mattmoor/bindings/pkg/client/injection/informers/bindings/v1alpha1/githubbinding"
 	fake "github.com/mattmoor/bindings/pkg/client/injection/informers/factory/fake"

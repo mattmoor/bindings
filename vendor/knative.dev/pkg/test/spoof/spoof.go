@@ -27,7 +27,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/kubernetes"
 	"knative.dev/pkg/test/ingress"
@@ -40,9 +39,6 @@ import (
 )
 
 const (
-	requestInterval = 1 * time.Second
-	// RequestTimeout is the default timeout for the polling requests.
-	RequestTimeout = 5 * time.Minute
 	// Name of the temporary HTTP header that is added to http.Request to indicate that
 	// it is a SpoofClient.Poll request. This header is removed before making call to backend.
 	pollReqHeader = "X-Kn-Poll-Request-Do-Not-Trace"
@@ -65,7 +61,7 @@ func (r *Response) String() string {
 // Interface defines the actions that can be performed by the spoofing client.
 type Interface interface {
 	Do(*http.Request) (*Response, error)
-	Poll(*http.Request, ResponseChecker) (*Response, error)
+	Poll(*http.Request, ResponseChecker, ...ErrorRetryChecker) (*Response, error)
 }
 
 // https://medium.com/stupid-gopher-tricks/ensuring-go-interface-satisfaction-at-compile-time-1ed158e8fa17
@@ -80,6 +76,10 @@ var (
 // See the apimachinery wait package:
 // https://github.com/kubernetes/apimachinery/blob/cf7ae2f57dabc02a3d215f15ca61ae1446f3be8f/pkg/util/wait/wait.go#L172
 type ResponseChecker func(resp *Response) (done bool, err error)
+
+// ErrorRetryChecker is used to determine if an error should be retried or not.
+// If an error should be retried, it should return true and the wrapped error to explain why to retry.
+type ErrorRetryChecker func(e error) (retry bool, err error)
 
 // SpoofingClient is a minimal HTTP client wrapper that spoofs the domain of requests
 // for non-resolvable domains.
@@ -104,6 +104,8 @@ func New(
 	domain string,
 	resolvable bool,
 	endpointOverride string,
+	requestInterval time.Duration,
+	requestTimeout time.Duration,
 	opts ...TransportOption) (*SpoofingClient, error) {
 	endpoint, err := ResolveEndpoint(kubeClientset, domain, resolvable, endpointOverride)
 	if err != nil {
@@ -137,7 +139,7 @@ func New(
 	sc := SpoofingClient{
 		Client:          &http.Client{Transport: roundTripper},
 		RequestInterval: requestInterval,
-		RequestTimeout:  RequestTimeout,
+		RequestTimeout:  requestTimeout,
 		Logf:            logf,
 	}
 	return &sc, nil
@@ -200,7 +202,7 @@ func (sc *SpoofingClient) Do(req *http.Request) (*Response, error) {
 }
 
 // Poll executes an http request until it satisfies the inState condition or encounters an error.
-func (sc *SpoofingClient) Poll(req *http.Request, inState ResponseChecker) (*Response, error) {
+func (sc *SpoofingClient) Poll(req *http.Request, inState ResponseChecker, errorRetryCheckers ...ErrorRetryChecker) (*Response, error) {
 	var (
 		resp *Response
 		err  error
@@ -213,22 +215,15 @@ func (sc *SpoofingClient) Poll(req *http.Request, inState ResponseChecker) (*Res
 		req.Header.Add(pollReqHeader, "True")
 		resp, err = sc.Do(req)
 		if err != nil {
-			if isTCPTimeout(err) {
-				sc.Logf("Retrying %s for TCP timeout: %v", req.URL, err)
-				return false, nil
+			if len(errorRetryCheckers) == 0 {
+				errorRetryCheckers = []ErrorRetryChecker{DefaultErrorRetryChecker}
 			}
-			// Retrying on DNS error, since we may be using xip.io or nip.io in tests.
-			if isDNSError(err) {
-				sc.Logf("Retrying %s for DNS error: %v", req.URL, err)
-				return false, nil
-			}
-			// Repeat the poll on `connection refused` errors, which are usually transient Istio errors.
-			if isConnectionRefused(err) {
-				sc.Logf("Retrying %s for connection refused: %v", req.URL, err)
-				return false, nil
-			}
-			if isConnectionReset(err) {
-				sc.Logf("Retrying %s for connection reset: %v", req.URL, err)
+			for _, checker := range errorRetryCheckers {
+				retry, newErr := checker(err)
+				if retry {
+					sc.Logf("Retrying %s: %v", req.URL, newErr)
+					return false, nil
+				}
 			}
 			return true, err
 		}
@@ -241,9 +236,28 @@ func (sc *SpoofingClient) Poll(req *http.Request, inState ResponseChecker) (*Res
 	}
 
 	if err != nil {
-		return resp, errors.Wrapf(err, "response: %s did not pass checks", resp)
+		return resp, fmt.Errorf("response: %s did not pass checks: %w", resp, err)
 	}
 	return resp, nil
+}
+
+// DefaultErrorRetryChecker implements the defaults for retrying on error.
+func DefaultErrorRetryChecker(err error) (bool, error) {
+	if isTCPTimeout(err) {
+		return true, fmt.Errorf("Retrying for TCP timeout: %v", err)
+	}
+	// Retrying on DNS error, since we may be using xip.io or nip.io in tests.
+	if isDNSError(err) {
+		return true, fmt.Errorf("Retrying for DNS error: %v", err)
+	}
+	// Repeat the poll on `connection refused` errors, which are usually transient Istio errors.
+	if isConnectionRefused(err) {
+		return true, fmt.Errorf("Retrying for connection refused: %v", err)
+	}
+	if isConnectionReset(err) {
+		return true, fmt.Errorf("Retrying for connection reset: %v", err)
+	}
+	return false, err
 }
 
 // logZipkinTrace provides support to log Zipkin Trace for param: spoofResponse
