@@ -228,7 +228,8 @@ postgres://username:password@ip:port/myfoodb
 
 postgres://myuser:mysupersecretpassword@127.0.0.1:5432/myfoodb
 
-This key is made available under `/var/bindings/sql/secrets/`
+This key is made available under `/var/bindings/sql/` so there's a file called
+`/var/bindings/sql/connectionstr` with the connectionstr from the secret.
 
 There is a helper library available to facilitate consumption a `database/sql.DB`:
 
