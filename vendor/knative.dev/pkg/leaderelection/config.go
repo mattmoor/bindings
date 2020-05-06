@@ -17,7 +17,6 @@ limitations under the License.
 package leaderelection
 
 import (
-	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -30,10 +29,7 @@ import (
 
 const ConfigMapNameEnv = "CONFIG_LEADERELECTION_NAME"
 
-var (
-	errEmptyLeaderElectionConfig = errors.New("empty leader election configuration")
-	validResourceLocks           = sets.NewString("leases", "configmaps", "endpoints")
-)
+var validResourceLocks = sets.NewString("leases", "configmaps", "endpoints")
 
 // NewConfigFromMap returns a Config for the given map, or an error.
 func NewConfigFromMap(data map[string]string) (*Config, error) {
@@ -102,6 +98,7 @@ type Config struct {
 func (c *Config) GetComponentConfig(name string) ComponentConfig {
 	if c.EnabledComponents.Has(name) {
 		return ComponentConfig{
+			Component:     name,
 			LeaderElect:   true,
 			ResourceLock:  c.ResourceLock,
 			LeaseDuration: c.LeaseDuration,
@@ -110,7 +107,7 @@ func (c *Config) GetComponentConfig(name string) ComponentConfig {
 		}
 	}
 
-	return defaultComponentConfig()
+	return defaultComponentConfig(name)
 }
 
 func defaultConfig() *Config {
@@ -125,6 +122,7 @@ func defaultConfig() *Config {
 
 // ComponentConfig represents the leader election config for a single component.
 type ComponentConfig struct {
+	Component     string
 	LeaderElect   bool
 	ResourceLock  string
 	LeaseDuration time.Duration
@@ -132,8 +130,9 @@ type ComponentConfig struct {
 	RetryPeriod   time.Duration
 }
 
-func defaultComponentConfig() ComponentConfig {
+func defaultComponentConfig(name string) ComponentConfig {
 	return ComponentConfig{
+		Component:   name,
 		LeaderElect: false,
 	}
 }
