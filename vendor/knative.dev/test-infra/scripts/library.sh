@@ -26,7 +26,7 @@ readonly SERVING_GKE_VERSION=gke-latest
 readonly SERVING_GKE_IMAGE=cos
 
 # Conveniently set GOPATH if unset
-if [[ -z "${GOPATH:-}" ]]; then
+if [[ ! -v GOPATH ]]; then
   export GOPATH="$(go env GOPATH)"
   if [[ -z "${GOPATH}" ]]; then
     echo "WARNING: GOPATH not set and go binary unable to provide it"
@@ -34,9 +34,9 @@ if [[ -z "${GOPATH:-}" ]]; then
 fi
 
 # Useful environment variables
-[[ -n "${PROW_JOB_ID:-}" ]] && IS_PROW=1 || IS_PROW=0
+[[ -v PROW_JOB_ID ]] && IS_PROW=1 || IS_PROW=0
 readonly IS_PROW
-[[ -z "${REPO_ROOT_DIR:-}" ]] && REPO_ROOT_DIR="$(git rev-parse --show-toplevel)"
+[[ ! -v REPO_ROOT_DIR ]] && REPO_ROOT_DIR="$(git rev-parse --show-toplevel)"
 readonly REPO_ROOT_DIR
 readonly REPO_NAME="$(basename ${REPO_ROOT_DIR})"
 
@@ -432,14 +432,18 @@ function report_go_test() {
 }
 
 # Install Knative Serving in the current cluster.
-# Parameters: $1 - Knative Serving manifest.
+# Parameters: $1 - Knative Serving crds manifest.
+#             $2 - Knative Serving core manifest.
+#             $3 - Knative net-istio manifest.
 function start_knative_serving() {
   header "Starting Knative Serving"
   subheader "Installing Knative Serving"
   echo "Installing Serving CRDs from $1"
-  kubectl apply --selector knative.dev/crd-install=true -f "$1"
-  echo "Installing the rest of serving components from $1"
   kubectl apply -f "$1"
+  echo "Installing Serving core components from $2"
+  kubectl apply -f "$2"
+  echo "Installing net-istio components from $3"
+  kubectl apply -f "$3"
   wait_until_pods_running knative-serving || return 1
 }
 
@@ -461,12 +465,14 @@ function start_knative_monitoring() {
 # Install the stable release Knative/serving in the current cluster.
 # Parameters: $1 - Knative Serving version number, e.g. 0.6.0.
 function start_release_knative_serving() {
-  start_knative_serving "https://storage.googleapis.com/knative-releases/serving/previous/v$1/serving.yaml"
+  start_knative_serving "https://storage.googleapis.com/knative-releases/serving/previous/v$1/serving-crds.yaml" \
+    "https://storage.googleapis.com/knative-releases/serving/previous/v$1/serving-core.yaml" \
+    "https://storage.googleapis.com/knative-releases/net-istio/previous/v$1/net-istio.yaml"
 }
 
 # Install the latest stable Knative Serving in the current cluster.
 function start_latest_knative_serving() {
-  start_knative_serving "${KNATIVE_SERVING_RELEASE}"
+  start_knative_serving "${KNATIVE_SERVING_RELEASE_CRDS}" "${KNATIVE_SERVING_RELEASE_CORE}" "${KNATIVE_NET_ISTIO_RELEASE}"
 }
 
 # Install Knative Eventing in the current cluster.
@@ -499,24 +505,19 @@ function start_latest_knative_eventing() {
 function run_go_tool() {
   local tool=$2
   local install_failed=0
-  local action="get"
-  [[ $1 =~ ^[\./].* ]] && action="install"
-  # Install the tool in the following situations:
-  #   - The tool does not exist.
-  #   - The tool needs to be installed from a local path.
-  #   - Version of the tool is specificied in the given tool path.
-  # TODO(chizhg): derive a better versioning story for the tools being used.
-  if [[ -z "$(which "${tool}")" || "${action}" == "install" || "${tool}" =~ "@" ]]; then
+  if [[ -z "$(which ${tool})" ]]; then
+    local action=get
+    [[ $1 =~ ^[\./].* ]] && action=install
     # Avoid running `go get` from root dir of the repository, as it can change go.sum and go.mod files.
     # See discussions in https://github.com/golang/go/issues/27643.
     if [[ ${action} == "get" && $(pwd) == "${REPO_ROOT_DIR}" ]]; then
       local temp_dir="$(mktemp -d)"
       # Swallow the output as we are returning the stdout in the end.
       pushd "${temp_dir}" > /dev/null 2>&1
-      GOFLAGS="" go ${action} $1 || install_failed=1
+      GOFLAGS="" go ${action} "$1" || install_failed=1
       popd > /dev/null 2>&1
     else
-      GOFLAGS="" go ${action} $1 || install_failed=1
+      GOFLAGS="" go ${action} "$1" || install_failed=1
     fi
   fi
   (( install_failed )) && return ${install_failed}
@@ -524,15 +525,13 @@ function run_go_tool() {
   ${tool} "$@"
 }
 
-# Run "kntest" tool
-# Parameters: $1..$n - parameters passed to the tool
+# Run kntest tool, error out and ask users to install it if it's not currently installed.
+# Parameters: $1..$n - parameters passed to the tool.
 function run_kntest() {
-  if [[ "${REPO_NAME}" == "test-infra" ]]; then
-    go run "${REPO_ROOT_DIR}"/kntest/cmd/kntest "$@"
-  else
-    # Always run the latest version.
-    run_go_tool knative.dev/test-infra/kntest/cmd/kntest@master "$@"
+  if [[ -z "$(which kntest)" ]]; then
+    echo "--- FAIL: kntest not installed, please clone test-infra repo and run \`go install ./kntest/cmd/kntest\` to install it"; return 1;
   fi
+  kntest "$@"
 }
 
 # Run go-licenses to update licenses.
@@ -543,7 +542,8 @@ function update_licenses() {
   local dst=$1
   local dir=$2
   shift
-  run_go_tool github.com/google/go-licenses go-licenses save "${dir}" --save_path="${dst}" --force || return 1
+  run_go_tool github.com/google/go-licenses go-licenses save "${dir}" --save_path="${dst}" --force || \
+    { echo "--- FAIL: go-licenses failed to update licenses"; return 1; }
   # Hack to make sure directories retain write permissions after save. This
   # can happen if the directory being copied is a Go module.
   # See https://github.com/google/go-licenses/issues/11
@@ -553,7 +553,8 @@ function update_licenses() {
 # Run go-licenses to check for forbidden licenses.
 function check_licenses() {
   # Check that we don't have any forbidden licenses.
-  run_go_tool github.com/google/go-licenses go-licenses check "${REPO_ROOT_DIR}/..." || return 1
+  run_go_tool github.com/google/go-licenses go-licenses check "${REPO_ROOT_DIR}/..." || \
+    { echo "--- FAIL: go-licenses failed the license check"; return 1; }
 }
 
 # Run the given linter on the given files, checking it exists first.
@@ -652,6 +653,21 @@ function get_canonical_path() {
   echo "$(cd ${path%/*} && echo $PWD/${path##*/})"
 }
 
+# List changed files in the current PR.
+# This is implemented as a function so it can be mocked in unit tests.
+# It will fail if a file name ever contained a newline character (which is bad practice anyway)
+function list_changed_files() {
+  if [[ -v PULL_BASE_SHA ]] && [[ -v PULL_PULL_SHA ]]; then
+    # Avoid warning when there are more than 1085 files renamed:
+    # https://stackoverflow.com/questions/7830728/warning-on-diff-renamelimit-variable-when-doing-git-push
+    git config diff.renames 0
+    git --no-pager diff --name-only ${PULL_BASE_SHA}..${PULL_PULL_SHA}
+  else
+    # Do our best if not running in Prow
+    git diff --name-only HEAD^
+  fi
+}
+
 # Returns the current branch.
 function current_branch() {
   local branch_name=""
@@ -694,6 +710,29 @@ function get_latest_knative_yaml_source() {
   echo "https://storage.googleapis.com/knative-nightly/${repo_name}/latest/${yaml_name}.yaml"
 }
 
+function shellcheck_new_files() {
+  declare -a array_of_files
+  local failed=0
+  readarray -t -d '\n' array_of_files < <(list_changed_files)
+  for filename in "${array_of_files[@]}"; do
+    if echo "${filename}" | grep -q "^vendor/"; then
+      continue
+    fi
+    if file "${filename}" | grep -q "shell script"; then
+      # SC1090 is "Can't follow non-constant source"; we will scan files individually
+      if shellcheck -e SC1090 "${filename}"; then
+        echo "--- PASS: shellcheck on ${filename}"
+      else
+        echo "--- FAIL: shellcheck on ${filename}"
+        failed=1
+      fi
+    fi
+  done
+  if [[ ${failed} -eq 1 ]]; then
+    fail_script "shellcheck failures"
+  fi
+}
+
 # Initializations that depend on previous functions.
 # These MUST come last.
 
@@ -701,6 +740,8 @@ readonly _TEST_INFRA_SCRIPTS_DIR="$(dirname $(get_canonical_path ${BASH_SOURCE[0
 readonly REPO_NAME_FORMATTED="Knative $(capitalize ${REPO_NAME//-/ })"
 
 # Public latest nightly or release yaml files.
-readonly KNATIVE_SERVING_RELEASE="$(get_latest_knative_yaml_source "serving" "serving")"
+readonly KNATIVE_SERVING_RELEASE_CRDS="$(get_latest_knative_yaml_source "serving" "serving-crds")"
+readonly KNATIVE_SERVING_RELEASE_CORE="$(get_latest_knative_yaml_source "serving" "serving-core")"
+readonly KNATIVE_NET_ISTIO_RELEASE="$(get_latest_knative_yaml_source "net-istio" "net-istio")"
 readonly KNATIVE_EVENTING_RELEASE="$(get_latest_knative_yaml_source "eventing" "eventing")"
 readonly KNATIVE_MONITORING_RELEASE="$(get_latest_knative_yaml_source "serving" "monitoring")"

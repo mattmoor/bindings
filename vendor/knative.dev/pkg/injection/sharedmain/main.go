@@ -52,6 +52,7 @@ import (
 	"knative.dev/pkg/logging"
 	"knative.dev/pkg/metrics"
 	"knative.dev/pkg/profiling"
+	"knative.dev/pkg/reconciler"
 	"knative.dev/pkg/signals"
 	"knative.dev/pkg/system"
 	"knative.dev/pkg/version"
@@ -189,7 +190,7 @@ func MainWithConfig(ctx context.Context, component string, cfg *rest.Config, cto
 	// Set up leader election config
 	leaderElectionConfig, err := GetLeaderElectionConfig(ctx)
 	if err != nil {
-		logger.Fatalf("Error loading leader election configuration: %v", err)
+		logger.Fatalw("Error loading leader election configuration", zap.Error(err))
 	}
 	leConfig := leaderElectionConfig.GetComponentConfig(component)
 
@@ -231,6 +232,18 @@ func WebhookMainWithConfig(ctx context.Context, component string, cfg *rest.Conf
 
 	CheckK8sClientMinimumVersionOrDie(ctx, logger)
 	cmw := SetupConfigMapWatchOrDie(ctx, logger)
+
+	// Set up leader election config
+	leaderElectionConfig, err := GetLeaderElectionConfig(ctx)
+	if err != nil {
+		logger.Fatalf("Error loading leader election configuration: %v", err)
+	}
+	leConfig := leaderElectionConfig.GetComponentConfig(component)
+	if leConfig.LeaderElect {
+		// Signal that we are executing in a context with leader election.
+		ctx = kle.WithStandardLeaderElectorBuilder(ctx, kubeclient.Get(ctx), leConfig)
+	}
+
 	controllers, webhooks := ControllersAndWebhooksFromCtors(ctx, cmw, ctors...)
 	WatchLoggingConfigOrDie(ctx, cmw, logger, atomicLevel, component)
 	WatchObservabilityConfigOrDie(ctx, cmw, profilingHandler, logger, component)
@@ -241,7 +254,6 @@ func WebhookMainWithConfig(ctx context.Context, component string, cfg *rest.Conf
 	// If we have one or more admission controllers, then start the webhook
 	// and pass them in.
 	var wh *webhook.Webhook
-	var err error
 	if len(webhooks) > 0 {
 		// Register webhook metrics
 		webhook.RegisterMetrics()
@@ -343,9 +355,9 @@ func SetupConfigMapWatchOrDie(ctx context.Context, logger *zap.SugaredLogger) *c
 	if cmLabel := system.ResourceLabel(); cmLabel != "" {
 		req, err := configmap.FilterConfigByLabelExists(cmLabel)
 		if err != nil {
-			logger.With(zap.Error(err)).Fatalf("Failed to generate requirement for label %q")
+			logger.Fatalw("Failed to generate requirement for label "+cmLabel, zap.Error(err))
 		}
-		logger.Infof("Setting up ConfigMap watcher with label selector %q", req)
+		logger.Info("Setting up ConfigMap watcher with label selector: ", req)
 		cmLabelReqs = append(cmLabelReqs, *req)
 	}
 	// TODO(mattmoor): This should itself take a context and be injection-based.
@@ -360,7 +372,7 @@ func WatchLoggingConfigOrDie(ctx context.Context, cmw *configmap.InformedWatcher
 		metav1.GetOptions{}); err == nil {
 		cmw.Watch(logging.ConfigMapName(), logging.UpdateLevelFromConfigMap(logger, atomicLevel, component))
 	} else if !apierrors.IsNotFound(err) {
-		logger.With(zap.Error(err)).Fatalf("Error reading ConfigMap %q", logging.ConfigMapName())
+		logger.Fatalw("Error reading ConfigMap "+logging.ConfigMapName(), zap.Error(err))
 	}
 }
 
@@ -374,7 +386,7 @@ func WatchObservabilityConfigOrDie(ctx context.Context, cmw *configmap.InformedW
 			metrics.ConfigMapWatcher(component, SecretFetcher(ctx), logger),
 			profilingHandler.UpdateFromConfigMap)
 	} else if !apierrors.IsNotFound(err) {
-		logger.With(zap.Error(err)).Fatalf("Error reading ConfigMap %q", metrics.ConfigMapName())
+		logger.Fatalw("Error reading ConfigMap "+metrics.ConfigMapName(), zap.Error(err))
 	}
 }
 
@@ -399,6 +411,11 @@ func SecretFetcher(ctx context.Context) metrics.SecretFetcher {
 func ControllersAndWebhooksFromCtors(ctx context.Context,
 	cmw *configmap.InformedWatcher,
 	ctors ...injection.ControllerConstructor) ([]*controller.Impl, []interface{}) {
+
+	// Check whether the context has been infused with a leader elector builder.
+	// If it has, then every reconciler we plan to start MUST implement LeaderAware.
+	leEnabled := kle.HasLeaderElection(ctx)
+
 	controllers := make([]*controller.Impl, 0, len(ctors))
 	webhooks := make([]interface{}, 0)
 	for _, cf := range ctors {
@@ -409,6 +426,12 @@ func ControllersAndWebhooksFromCtors(ctx context.Context,
 		switch c := ctrl.Reconciler.(type) {
 		case webhook.AdmissionController, webhook.ConversionController:
 			webhooks = append(webhooks, c)
+		}
+
+		if leEnabled {
+			if _, ok := ctrl.Reconciler.(reconciler.LeaderAware); !ok {
+				log.Fatalf("%T is not leader-aware, all reconcilers must be leader-aware to enable fine-grained leader election.", ctrl.Reconciler)
+			}
 		}
 	}
 
@@ -457,7 +480,7 @@ func RunLeaderElected(ctx context.Context, logger *zap.SugaredLogger, run func(c
 			EventRecorder: recorder,
 		})
 	if err != nil {
-		logger.Fatalw("Error creating lock: %v", err)
+		logger.Fatalw("Error creating lock", zap.Error(err))
 	}
 
 	// Execute the `run` function when we have the lock.
@@ -469,7 +492,7 @@ func RunLeaderElected(ctx context.Context, logger *zap.SugaredLogger, run func(c
 		Callbacks: leaderelection.LeaderCallbacks{
 			OnStartedLeading: run,
 			OnStoppedLeading: func() {
-				logger.Fatal("leaderelection lost")
+				logger.Fatal("Leader election lost")
 			},
 		},
 		ReleaseOnCancel: true,
