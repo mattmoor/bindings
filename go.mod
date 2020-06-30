@@ -6,7 +6,7 @@ require (
 	github.com/dghubble/go-twitter v0.0.0-20190719072343-39e5462e111f
 	github.com/dghubble/oauth1 v0.6.0
 	github.com/go-sql-driver/mysql v1.5.0
-	github.com/google/go-github v17.0.0+incompatible
+	github.com/google/go-github/v32 v32.0.0-00010101000000-000000000000
 	github.com/gorilla/websocket v1.4.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway v1.14.3 // indirect
 	github.com/nlopes/slack v0.6.0
@@ -37,3 +37,5 @@ replace (
 	k8s.io/code-generator => k8s.io/code-generator v0.16.4
 	k8s.io/kube-openapi => k8s.io/kube-openapi v0.0.0-20190816220812-743ec37842bf
 )
+
+replace github.com/google/go-github/v32 => github.com/google/go-github/v32 v32.0.1-0.20200624231906-3d244d3d496e
