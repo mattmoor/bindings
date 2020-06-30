@@ -21,9 +21,11 @@ import (
 
 	fbinformer "github.com/mattmoor/bindings/pkg/client/injection/informers/bindings/v1alpha1/twitterbinding"
 	"knative.dev/pkg/client/injection/ducks/duck/v1/podspecable"
+	"knative.dev/pkg/reconciler"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -54,6 +56,21 @@ func NewController(
 	psInformerFactory := podspecable.Get(ctx)
 
 	c := &psbinding.BaseReconciler{
+		LeaderAwareFuncs: reconciler.LeaderAwareFuncs{
+			PromoteFunc: func(bkt reconciler.Bucket, enq func(reconciler.Bucket, types.NamespacedName)) error {
+				all, err := fbInformer.Lister().List(labels.Everything())
+				if err != nil {
+					return err
+				}
+				for _, elt := range all {
+					enq(bkt, types.NamespacedName{
+						Namespace: elt.GetNamespace(),
+						Name:      elt.GetName(),
+					})
+				}
+				return nil
+			},
+		},
 		GVR: v1alpha1.SchemeGroupVersion.WithResource("twitterbindings"),
 		Get: func(namespace string, name string) (psbinding.Bindable, error) {
 			return fbInformer.Lister().TwitterBindings(namespace).Get(name)
