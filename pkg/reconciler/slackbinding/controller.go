@@ -23,6 +23,7 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/cache"
 	"k8s.io/client-go/tools/record"
@@ -32,6 +33,7 @@ import (
 	"knative.dev/pkg/controller"
 	"knative.dev/pkg/injection/clients/dynamicclient"
 	"knative.dev/pkg/logging"
+	"knative.dev/pkg/reconciler"
 	"knative.dev/pkg/tracker"
 	"knative.dev/pkg/webhook/psbinding"
 
@@ -54,6 +56,21 @@ func NewController(
 	psInformerFactory := podspecable.Get(ctx)
 
 	c := &psbinding.BaseReconciler{
+		LeaderAwareFuncs: reconciler.LeaderAwareFuncs{
+			PromoteFunc: func(bkt reconciler.Bucket, enq func(reconciler.Bucket, types.NamespacedName)) error {
+				all, err := fbInformer.Lister().List(labels.Everything())
+				if err != nil {
+					return err
+				}
+				for _, elt := range all {
+					enq(bkt, types.NamespacedName{
+						Namespace: elt.GetNamespace(),
+						Name:      elt.GetName(),
+					})
+				}
+				return nil
+			},
+		},
 		GVR: v1alpha1.SchemeGroupVersion.WithResource("slackbindings"),
 		Get: func(namespace string, name string) (psbinding.Bindable, error) {
 			return fbInformer.Lister().SlackBindings(namespace).Get(name)
