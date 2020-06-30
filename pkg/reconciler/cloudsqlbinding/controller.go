@@ -21,6 +21,7 @@ import (
 
 	sqlinformer "github.com/mattmoor/bindings/pkg/client/injection/informers/bindings/v1alpha1/googlecloudsqlbinding"
 	"knative.dev/pkg/client/injection/ducks/duck/v1/podspecable"
+	"knative.dev/pkg/client/injection/kube/informers/core/v1/namespace"
 	"knative.dev/pkg/reconciler"
 
 	corev1 "k8s.io/api/core/v1"
@@ -54,6 +55,7 @@ func NewController(
 	sqlInformer := sqlinformer.Get(ctx)
 	dc := dynamicclient.Get(ctx)
 	psInformerFactory := podspecable.Get(ctx)
+	namespaceInformer := namespace.Get(ctx)
 
 	c := &psbinding.BaseReconciler{
 		LeaderAwareFuncs: reconciler.LeaderAwareFuncs{
@@ -78,6 +80,7 @@ func NewController(
 		DynamicClient: dc,
 		Recorder: record.NewBroadcaster().NewRecorder(
 			scheme.Scheme, corev1.EventSource{Component: controllerAgentName}),
+		NamespaceLister: namespaceInformer.Lister(),
 	}
 	impl := controller.NewImpl(c, logger, "GoogleCloudSQLBindings")
 

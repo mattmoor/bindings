@@ -20,6 +20,7 @@ import (
 	"context"
 
 	fbinformer "github.com/mattmoor/bindings/pkg/client/injection/informers/bindings/v1alpha1/slackbinding"
+	"knative.dev/pkg/client/injection/kube/informers/core/v1/namespace"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -54,6 +55,7 @@ func NewController(
 	fbInformer := fbinformer.Get(ctx)
 	dc := dynamicclient.Get(ctx)
 	psInformerFactory := podspecable.Get(ctx)
+	namespaceInformer := namespace.Get(ctx)
 
 	c := &psbinding.BaseReconciler{
 		LeaderAwareFuncs: reconciler.LeaderAwareFuncs{
@@ -78,6 +80,7 @@ func NewController(
 		DynamicClient: dc,
 		Recorder: record.NewBroadcaster().NewRecorder(
 			scheme.Scheme, corev1.EventSource{Component: controllerAgentName}),
+		NamespaceLister: namespaceInformer.Lister(),
 	}
 	impl := controller.NewImpl(c, logger, "SlackBindings")
 
