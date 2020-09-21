@@ -7,17 +7,15 @@ require (
 	github.com/dghubble/oauth1 v0.6.0
 	github.com/go-sql-driver/mysql v1.5.0
 	github.com/google/go-github/v32 v32.0.0-00010101000000-000000000000
-	github.com/gorilla/websocket v1.4.1 // indirect
-	github.com/grpc-ecosystem/grpc-gateway v1.14.3 // indirect
 	github.com/nlopes/slack v0.6.0
 	golang.org/x/oauth2 v0.0.0-20200107190931-bf48bf16ab8d
-	k8s.io/api v0.17.6
-	k8s.io/apimachinery v0.17.6
+	k8s.io/api v0.18.8
+	k8s.io/apimachinery v0.18.8
 	k8s.io/client-go v11.0.1-0.20190805182717-6502b5e7b1b5+incompatible
-	k8s.io/code-generator v0.18.0
+	k8s.io/code-generator v0.18.8
 	k8s.io/kube-openapi v0.0.0-20200410145947-bcb3869e6f29
-	knative.dev/pkg v0.0.0-20200623204627-e0a0d63a9e86
-	knative.dev/test-infra v0.0.0-20200623231727-6d5d6aeb457c
+	knative.dev/pkg v0.0.0-20200921223636-6a12c7596267
+	knative.dev/test-infra v0.0.0-20200921012245-37f1a12adbd3
 )
 
 replace (
