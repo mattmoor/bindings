@@ -33,7 +33,7 @@ jobs:
         trap 'rm -rf ${TMP_DIR} && rm -rf $SCRIPT_ROOT/vendor' EXIT
         export GOPATH=${GOPATH:-${TMP_DIR}}
         TMP_REPO_PATH="${TMP_DIR}/src/${MODULE_NAME}"
-        mkdir -p "$(dirname "${TMP_REPO_PATH}")" && ln -s "${SCRIPT_ROOT}" "${TMP_REPO_PATH}"
+        mkdir -p "$(dirname "${TMP_REPO_PATH}")" && ln -s "${GITHUB_WORKSPACE}" "${TMP_REPO_PATH}"
 
         ./hack/update-deps.sh --upgrade
         # We may pull in code-generator updates, or not have generated code.
