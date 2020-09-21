@@ -4,6 +4,7 @@ on:
   schedule:
   - cron:  '* * * * *'
 
+
 jobs:
   update-deps:
     name: Update Deps and Codegen
@@ -44,6 +45,9 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         commit-message: 'upgrade to latest dependencies'
+        signoff: true
+        branch: auto-updates/update-deps
+        delete-branch: true
         title: '[Automated] Upgrade to latest dependencies'
         body: |
           Produced via:
@@ -90,6 +94,9 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         commit-message: 'format Go code'
+        signoff: true
+        branch: auto-updates/gotools
+        delete-branch: true
         title: '[Automated] Format Go code'
         body: |
           Produced via:
@@ -136,6 +143,9 @@ jobs:
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
         commit-message: 'Run github.com/client9/misspell'
+        signoff: true
+        branch: auto-updates/client9-misspell
+        delete-branch: true
         title: '[Automated] Fix misspellings'
         body: |
           Produced via:
