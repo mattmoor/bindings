@@ -153,3 +153,44 @@ jobs:
           export FILES=( $(find . -type f -not -path './vendor/*' -not -path './third_party/*' -not -path './.git/*') )
           misspell -w "${FILES[@]}"
           ```
+
+  update-actions:
+    name: Update Actions
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out code onto GOPATH
+      uses: actions/checkout@v2
+      with:
+        path: main
+
+    - name: Check out code onto GOPATH
+      uses: actions/checkout@v2
+      with:
+        path: meta
+        repository: 'knative-sandbox/.github'
+
+    - name: Copy Actions.
+      shell: bash
+      run: |
+        cp "${GITHUB_WORKSPACE}/meta/.github/workflow-templates/*.yaml" \
+           "${GITHUB_WORKSPACE}/main/.github/workflows/"
+
+    - name: Create Pull Request
+      uses: peter-evans/create-pull-request@v3
+      with:
+        path: main
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: 'Update common github actions'
+        signoff: true
+        branch: auto-updates/common-actions
+        delete-branch: true
+        title: '[Automated] Update actions'
+        body: |
+          Produced via:
+          ```shell
+          # meta: blah/.github
+          # main: ${{ github.repository }}
+          cp "${GITHUB_WORKSPACE}/meta/.github/workflow-templates/*.yaml" \
+             "${GITHUB_WORKSPACE}/main/.github/workflows/"
+          ```
