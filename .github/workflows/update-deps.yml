@@ -173,7 +173,7 @@ jobs:
     - name: Copy Actions.
       shell: bash
       run: |
-        cp "${GITHUB_WORKSPACE}/meta/.github/workflow-templates/*.yaml" \
+        cp "${GITHUB_WORKSPACE}/meta/workflow-templates/*.yaml" \
            "${GITHUB_WORKSPACE}/main/.github/workflows/"
 
     - name: Create Pull Request
@@ -191,6 +191,6 @@ jobs:
           ```shell
           # meta: blah/.github
           # main: ${{ github.repository }}
-          cp "${GITHUB_WORKSPACE}/meta/.github/workflow-templates/*.yaml" \
+          cp "${GITHUB_WORKSPACE}/meta/workflow-templates/*.yaml" \
              "${GITHUB_WORKSPACE}/main/.github/workflows/"
           ```
