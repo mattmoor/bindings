@@ -173,9 +173,7 @@ jobs:
     - name: Copy Actions.
       shell: bash
       run: |
-        find ${GITHUB_WORKSPACE}/meta -type f
-
-        cp "${GITHUB_WORKSPACE}/meta/workflow-templates/*.yaml" \
+        cp $(find "${GITHUB_WORKSPACE}/meta/workflow-templates" -type f -name '*.yaml') \
            "${GITHUB_WORKSPACE}/main/.github/workflows/"
 
     - name: Create Pull Request
