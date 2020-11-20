@@ -22,7 +22,9 @@ import (
 	"crypto/x509"
 	"time"
 
+	"go.uber.org/zap"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes"
 	corelisters "k8s.io/client-go/listers/core/v1"
@@ -82,11 +84,11 @@ func (r *reconciler) reconcileCertificate(ctx context.Context) error {
 		// Check the expiration date of the certificate to see if it needs to be updated
 		cert, err := tls.X509KeyPair(secret.Data[certresources.ServerCert], secret.Data[certresources.ServerKey])
 		if err != nil {
-			logger.Warnf("Error creating pem from certificate and key: %v", err)
+			logger.Warnw("Error creating pem from certificate and key", zap.Error(err))
 		} else {
 			certData, err := x509.ParseCertificate(cert.Certificate[0])
 			if err != nil {
-				logger.Errorf("Error parsing certificate: %v", err)
+				logger.Errorw("Error parsing certificate", zap.Error(err))
 			} else if time.Now().Add(oneWeek).Before(certData.NotAfter) {
 				return nil
 			}
@@ -101,6 +103,6 @@ func (r *reconciler) reconcileCertificate(ctx context.Context) error {
 		return err
 	}
 	secret.Data = newSecret.Data
-	_, err = r.client.CoreV1().Secrets(secret.Namespace).Update(secret)
+	_, err = r.client.CoreV1().Secrets(secret.Namespace).Update(ctx, secret, metav1.UpdateOptions{})
 	return err
 }

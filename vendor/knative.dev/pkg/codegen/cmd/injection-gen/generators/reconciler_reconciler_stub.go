@@ -57,7 +57,7 @@ func (g *reconcilerReconcilerStubGenerator) Imports(c *generator.Context) (impor
 func (g *reconcilerReconcilerStubGenerator) GenerateType(c *generator.Context, t *types.Type, w io.Writer) error {
 	sw := generator.NewSnippetWriter(w, c, "{{", "}}")
 
-	klog.V(5).Infof("processing type %v", t)
+	klog.V(5).Info("processing type ", t)
 
 	m := map[string]interface{}{
 		"type": t,
@@ -139,8 +139,9 @@ func (r *Reconciler) ReconcileKind(ctx {{.contextContext|raw}}, o *{{.type|raw}}
 
 	{{if not .isKRShaped}}
 	// TODO: use this if the object has .status.ObservedGeneration.
-	// o.Status.ObservedGeneration = o.Generation{{end}}
-	return newReconciledNormal(o.Namespace, o.Name)
+	// o.Status.ObservedGeneration = o.Generation
+	{{end}}
+	return nil
 }
 
 // Optionally, use FinalizeKind to add finalizers. FinalizeKind will be called
