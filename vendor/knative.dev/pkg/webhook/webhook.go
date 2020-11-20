@@ -27,6 +27,7 @@ import (
 	// Injection stuff
 	kubeclient "knative.dev/pkg/client/injection/kube/client"
 	kubeinformerfactory "knative.dev/pkg/injection/clients/namespacedkube/informers/factory"
+	"knative.dev/pkg/network/handlers"
 
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -62,7 +63,7 @@ type Options struct {
 }
 
 // Operation is the verb being operated on
-// it is aliasde in Validation from the k8s admission package
+// it is aliased in Validation from the k8s admission package
 type Operation = admissionv1.Operation
 
 // Operation types
@@ -83,8 +84,6 @@ type Webhook struct {
 	// synced is function that is called when the informers have been synced.
 	synced context.CancelFunc
 
-	// stopCh is closed when we should start failing readiness probes.
-	stopCh chan struct{}
 	// grace period is how long to wait after failing readiness probes
 	// before shutting down.
 	gracePeriod time.Duration
@@ -137,12 +136,11 @@ func New(
 		secretlister: secretInformer.Lister(),
 		Logger:       logger,
 		synced:       cancel,
-		stopCh:       make(chan struct{}),
 		gracePeriod:  network.DefaultDrainTimeout,
 	}
 
 	webhook.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.Error(w, fmt.Sprintf("no controller registered for: %s", r.URL.Path), http.StatusBadRequest)
+		http.Error(w, fmt.Sprint("no controller registered for: ", r.URL.Path), http.StatusBadRequest)
 	})
 
 	for _, controller := range controllers {
@@ -176,10 +174,16 @@ func (wh *Webhook) Run(stop <-chan struct{}) error {
 	logger := wh.Logger
 	ctx := logging.WithLogger(context.Background(), logger)
 
+	drainer := &handlers.Drainer{
+		Inner:       wh,
+		QuietPeriod: wh.gracePeriod,
+	}
+
 	server := &http.Server{
-		Handler: wh,
-		Addr:    fmt.Sprintf(":%d", wh.Options.Port),
+		Handler: drainer,
+		Addr:    fmt.Sprint(":", wh.Options.Port),
 		TLSConfig: &tls.Config{
+			MinVersion: tls.VersionTLS12,
 			GetCertificate: func(*tls.ClientHelloInfo) (*tls.Certificate, error) {
 				secret, err := wh.secretlister.Secrets(system.Namespace()).Get(wh.Options.SecretName)
 				if err != nil {
@@ -205,7 +209,7 @@ func (wh *Webhook) Run(stop <-chan struct{}) error {
 
 	eg, ctx := errgroup.WithContext(ctx)
 	eg.Go(func() error {
-		if err := server.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+		if err := server.ListenAndServeTLS("", ""); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			logger.Errorw("ListenAndServeTLS for admission webhook returned error", zap.Error(err))
 			return err
 		}
@@ -215,16 +219,12 @@ func (wh *Webhook) Run(stop <-chan struct{}) error {
 	select {
 	case <-stop:
 		eg.Go(func() error {
+			// As we start to shutdown, disable keep-alives to avoid clients hanging onto connections.
+			server.SetKeepAlivesEnabled(false)
+
 			// Start failing readiness probes immediately.
 			logger.Info("Starting to fail readiness probes...")
-			close(wh.stopCh)
-
-			// Wait for a grace period for the above to take effect and this Pod's
-			// endpoint to be removed from the webhook service's Endpoints.
-			// For this to be effective, it must be greater than the probe's
-			// periodSeconds times failureThreshold by a margin suitable to
-			// propagate the new Endpoints data across the cluster.
-			time.Sleep(wh.gracePeriod)
+			drainer.Drain()
 
 			return server.Shutdown(context.Background())
 		})
@@ -238,17 +238,6 @@ func (wh *Webhook) Run(stop <-chan struct{}) error {
 }
 
 func (wh *Webhook) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	// Respond to probes regardless of path.
-	if network.IsKubeletProbe(r) {
-		select {
-		case <-wh.stopCh:
-			http.Error(w, "shutting down", http.StatusInternalServerError)
-		default:
-			w.WriteHeader(http.StatusOK)
-		}
-		return
-	}
-
 	// Verify the content type is accurate.
 	contentType := r.Header.Get("Content-Type")
 	if contentType != "application/json" {

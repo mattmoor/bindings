@@ -26,7 +26,7 @@ if [ -z "${GOPATH:-}" ]; then
   export GOPATH=$(go env GOPATH)
 fi
 
-source $(dirname $0)/../vendor/knative.dev/test-infra/scripts/library.sh
+source $(dirname $0)/../vendor/knative.dev/hack/library.sh
 
 CODEGEN_PKG=${CODEGEN_PKG:-$(cd ${REPO_ROOT_DIR}; ls -d -1 $(dirname $0)/../vendor/k8s.io/code-generator 2>/dev/null || echo ../code-generator)}
 
@@ -47,9 +47,9 @@ EXTERNAL_INFORMER_PKG="k8s.io/client-go/informers" \
   ${REPO_ROOT_DIR}/hack/generate-knative.sh "injection" \
     k8s.io/client-go \
     k8s.io/api \
-    "admissionregistration:v1beta1,v1 apps:v1 autoscaling:v1,v2beta1 batch:v1,v1beta1 core:v1 rbac:v1" \
+    "admissionregistration:v1beta1,v1 apps:v1 autoscaling:v1,v2beta1 batch:v1,v1beta1 core:v1 rbac:v1 coordination:v1" \
     --go-header-file ${REPO_ROOT_DIR}/hack/boilerplate/boilerplate.go.txt \
-    --force-genreconciler-kinds "Namespace"
+    --force-genreconciler-kinds "Namespace,Deployment"
 
 OUTPUT_PKG="knative.dev/pkg/client/injection/apiextensions" \
 VERSIONED_CLIENTSET_PKG="k8s.io/apiextensions-apiserver/pkg/client/clientset/clientset" \

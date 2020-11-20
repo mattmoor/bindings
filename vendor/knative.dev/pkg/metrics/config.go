@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"go.opencensus.io/stats"
-	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	"knative.dev/pkg/metrics/metricskey"
 )
@@ -61,7 +60,9 @@ const (
 	defaultPrometheusPort = 9090
 	maxPrometheusPort     = 65535
 	minPrometheusPort     = 1024
+	defaultPrometheusHost = "0.0.0.0"
 	prometheusPortEnvName = "METRICS_PROMETHEUS_PORT"
+	prometheusHostEnvName = "METRICS_PROMETHEUS_HOST"
 )
 
 // Metrics backend "enum".
@@ -105,6 +106,10 @@ type metricsConfig struct {
 	// prometheusPort is the port where metrics are exposed in Prometheus
 	// format. It defaults to 9090.
 	prometheusPort int
+
+	// prometheusHost is the host where the metrics are exposed in Prometheus
+	// format. It defaults to "0.0.0.0"
+	prometheusHost string
 
 	// ---- Stackdriver specific below ----
 	// True if backendDestination equals to "stackdriver". Store this in a variable
@@ -156,18 +161,25 @@ func NewStackdriverClientConfigFromMap(config map[string]string) *StackdriverCli
 // record applies the `ros` Options to each measurement in `mss` and then records the resulting
 // measurements in the metricsConfig's designated backend.
 func (mc *metricsConfig) record(ctx context.Context, mss []stats.Measurement, ros ...stats.Options) error {
-	if mc == nil {
-		// Don't record data points if the metric config is not initialized yet.
-		// At this point, it's unclear whether should record or not.
+	if mc == nil || mc.backendDestination == none {
+		// Don't record data points if the metric config is not initialized yet or if
+		// the defined backend is "none" explicitly.
 		return nil
 	}
+
 	if mc.recorder == nil {
+		opt, err := optionForResource(metricskey.GetResource(ctx))
+		if err != nil {
+			return err
+		}
+		ros = append(ros, opt)
+
 		return stats.RecordWithOptions(ctx, append(ros, stats.WithMeasurements(mss...))...)
 	}
 	return mc.recorder(ctx, mss, ros...)
 }
 
-func createMetricsConfig(ops ExporterOptions, logger *zap.SugaredLogger) (*metricsConfig, error) {
+func createMetricsConfig(ctx context.Context, ops ExporterOptions) (*metricsConfig, error) {
 	var mc metricsConfig
 
 	if ops.Domain == "" {
@@ -194,15 +206,16 @@ func createMetricsConfig(ops ExporterOptions, logger *zap.SugaredLogger) (*metri
 	if backendFromConfig, ok := m[BackendDestinationKey]; ok {
 		backend = backendFromConfig
 	}
-	lb := metricsBackend(strings.ToLower(backend))
-	switch lb {
+
+	switch lb := metricsBackend(strings.ToLower(backend)); lb {
 	case stackdriver, prometheus, openCensus:
 		mc.backendDestination = lb
 	default:
 		return nil, fmt.Errorf("unsupported metrics backend value %q", backend)
 	}
 
-	if mc.backendDestination == openCensus {
+	switch mc.backendDestination {
+	case openCensus:
 		mc.collectorAddress = ops.ConfigMap[collectorAddressKey]
 		if isSecure := ops.ConfigMap[collectorSecureKey]; isSecure != "" {
 			var err error
@@ -217,9 +230,7 @@ func createMetricsConfig(ops ExporterOptions, logger *zap.SugaredLogger) (*metri
 				}
 			}
 		}
-	}
-
-	if mc.backendDestination == prometheus {
+	case prometheus:
 		pp := ops.PrometheusPort
 		if pp == 0 {
 			var err error
@@ -235,12 +246,11 @@ func createMetricsConfig(ops ExporterOptions, logger *zap.SugaredLogger) (*metri
 		}
 
 		mc.prometheusPort = pp
-	}
-
-	// If stackdriverClientConfig is not provided for stackdriver backend destination, OpenCensus will try to
-	// use the application default credentials. If that is not available, Opencensus would fail to create the
-	// metrics exporter.
-	if mc.backendDestination == stackdriver {
+		mc.prometheusHost = prometheusHost()
+	case stackdriver:
+		// If stackdriverClientConfig is not provided for stackdriver backend destination, OpenCensus will try to
+		// use the application default credentials. If that is not available, Opencensus would fail to create the
+		// metrics exporter.
 		scc := NewStackdriverClientConfigFromMap(m)
 		mc.stackdriverClientConfig = *scc
 		mc.isStackdriverBackend = true
@@ -260,32 +270,10 @@ func createMetricsConfig(ops ExporterOptions, logger *zap.SugaredLogger) (*metri
 			}
 		}
 
-		if !allowCustomMetrics {
-			servingOrEventing := metricskey.KnativeRevisionMetrics.Union(
-				metricskey.KnativeTriggerMetrics).Union(metricskey.KnativeBrokerMetrics)
-			mc.recorder = func(ctx context.Context, mss []stats.Measurement, ros ...stats.Options) error {
-				// Perform array filtering in place using two indices: w(rite)Index and r(ead)Index.
-				wIdx := 0
-				for rIdx := 0; rIdx < len(mss); rIdx++ {
-					metricType := path.Join(mc.stackdriverMetricTypePrefix, mss[rIdx].Measure().Name())
-					if servingOrEventing.Has(metricType) {
-						mss[wIdx] = mss[rIdx]
-						wIdx++
-					}
-					// Otherwise, skip the measurement (because it won't be accepted).
-				}
-				// Found no matched metrics.
-				if wIdx == 0 {
-					return nil
-				}
-				// Trim the list to the number of written objects.
-				mss = mss[:wIdx]
-				return stats.RecordWithOptions(ctx, append(ros, stats.WithMeasurements(mss...))...)
-			}
-		}
+		mc.recorder = sdCustomMetricsRecorder(mc, allowCustomMetrics)
 
 		if scc.UseSecret {
-			secret, err := getStackdriverSecret(ops.Secrets)
+			secret, err := getStackdriverSecret(ctx, ops.Secrets)
 			if err != nil {
 				return nil, err
 			}
@@ -301,18 +289,20 @@ func createMetricsConfig(ops ExporterOptions, logger *zap.SugaredLogger) (*metri
 	// For Prometheus, we will use a lower value since the exporter doesn't
 	// push anything but just responds to pull requests, and shorter durations
 	// do not really hurt the performance and we rely on the scraping configuration.
-	if repStr, ok := m[reportingPeriodKey]; ok && repStr != "" {
+	if repStr := m[reportingPeriodKey]; repStr != "" {
 		repInt, err := strconv.Atoi(repStr)
 		if err != nil {
 			return nil, fmt.Errorf("invalid %s value %q", reportingPeriodKey, repStr)
 		}
 		mc.reportingPeriod = time.Duration(repInt) * time.Second
-	} else if mc.backendDestination == stackdriver {
-		mc.reportingPeriod = 60 * time.Second
-	} else if mc.backendDestination == prometheus {
-		mc.reportingPeriod = 5 * time.Second
+	} else {
+		switch mc.backendDestination {
+		case stackdriver, openCensus:
+			mc.reportingPeriod = time.Minute
+		case prometheus:
+			mc.reportingPeriod = 5 * time.Second
+		}
 	}
-
 	return &mc, nil
 }
 
@@ -358,9 +348,19 @@ func prometheusPort() (int, error) {
 	return int(pp), nil
 }
 
-// JsonToMetricsOptions converts a json string of a
-// ExporterOptions. Returns a non-nil ExporterOptions always.
-func JsonToMetricsOptions(jsonOpts string) (*ExporterOptions, error) {
+// prometheusHost returns the host configured via the environment
+// for the Prometheus metrics exporter if it's set, a default value otherwise.
+// No validation is done here.
+func prometheusHost() string {
+	phStr := os.Getenv(prometheusHostEnvName)
+	if phStr == "" {
+		return defaultPrometheusHost
+	}
+	return phStr
+}
+
+// JSONToOptions converts a json string to ExporterOptions.
+func JSONToOptions(jsonOpts string) (*ExporterOptions, error) {
 	var opts ExporterOptions
 	if jsonOpts == "" {
 		return nil, errors.New("json options string is empty")
@@ -373,16 +373,12 @@ func JsonToMetricsOptions(jsonOpts string) (*ExporterOptions, error) {
 	return &opts, nil
 }
 
-// MetricsOptionsToJson converts a ExporterOptions to a json string.
-func MetricsOptionsToJson(opts *ExporterOptions) (string, error) {
+// OptionsToJSON converts an ExporterOptions object to a JSON string.
+func OptionsToJSON(opts *ExporterOptions) (string, error) {
 	if opts == nil {
 		return "", nil
 	}
 
 	jsonOpts, err := json.Marshal(opts)
-	if err != nil {
-		return "", err
-	}
-
-	return string(jsonOpts), nil
+	return string(jsonOpts), err
 }
