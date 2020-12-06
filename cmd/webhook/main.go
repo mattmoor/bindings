@@ -141,7 +141,7 @@ func main() {
 		return ctx, nil
 	}
 
-	sharedmain.MainWithContext(ctx, "webhook",
+	sharedmain.WebhookMainWithContext(ctx, "webhook",
 		// Our singleton certificate controller.
 		certificates.NewController,
 
